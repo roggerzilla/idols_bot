@@ -31,13 +31,19 @@ async def post_init(application):
     print("🚀 Database & Scheduler initialized")
 
 def main():
+    import os
+    # Solo usar proxy si estamos en PythonAnywhere
     proxy_url = "http://proxy.server:3128"
+    is_pa = os.path.exists("/home/monkey98")
+    
+    builder = ApplicationBuilder().token(TELEGRAM_TOKEN)
+    
+    if is_pa:
+        builder.proxy(proxy_url).get_updates_proxy(proxy_url)
+        print("🌐 Usando proxy de PythonAnywhere")
     
     application = (
-        ApplicationBuilder()
-        .token(TELEGRAM_TOKEN)
-        .proxy(proxy_url)
-        .get_updates_proxy(proxy_url)
+        builder
         .connect_timeout(30.0)
         .read_timeout(30.0)
         .write_timeout(30.0)

@@ -29,30 +29,36 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Animation sequence
         frames = ["🎰 ✨", "🎰 🌟", "🎰 💎", "🎰 🌈"]
         for frame in frames:
-            await q.edit_message_text(f"*GIRANDO RULETA...*\n\n{frame}", parse_mode="Markdown")
+            try:
+                await q.edit_message_text(f"GIRANDO RULETA...\n\n{frame}")
+            except:
+                pass
             await asyncio.sleep(0.3)
 
         tmpl = await gacha_pull(session, uid)
         
         # Premium visuals based on rarity
         rarity_themes = {
-            "C":  {"emoji": "⭐",       "border": "⚪", "title": "¡NUEVA ROOKIE!"},
-            "B":  {"emoji": "⭐⭐",      "border": "🟢", "title": "¡RISING STAR!"},
-            "A":  {"emoji": "⭐⭐⭐",     "border": "🔵", "title": "¡TALENTO ÉLITE!"},
-            "S":  {"emoji": "🌟🌟🌟🌟",    "border": "🟣", "title": "¡SUPERSTAR!"},
-            "SS": {"emoji": "💎💎💎💎💎", "border": "👑", "title": "¡DIOSA LEGENDARIA!"},
+            "C":  {"emoji": "⭐",       "border": "⚪", "title": "NUEVA ROOKIE"},
+            "B":  {"emoji": "⭐⭐",      "border": "🟢", "title": "RISING STAR"},
+            "A":  {"emoji": "⭐⭐⭐",     "border": "🔵", "title": "TALENTO ELITE"},
+            "S":  {"emoji": "🌟🌟🌟🌟",    "border": "🟣", "title": "SUPERSTAR"},
+            "SS": {"emoji": "💎💎💎💎💎", "border": "👑", "title": "DIOSA LEGENDARIA"},
         }
         theme = rarity_themes.get(tmpl.rarity, rarity_themes["C"])
         
+        name = tmpl.name.replace("_", " ")
+        group = tmpl.group_name.replace("_", " ")
+
         reveal_text = (
             f"{theme['border']} *{theme['title']}* {theme['border']}\n"
             f"━━━━━━━━━━━━━━━━━━\n"
-            f"✨ *{tmpl.name.upper()}*\n"
-            f"🏢 `{tmpl.group_name}`\n"
-            f"📊 Rareza: {theme['emoji']} `[{tmpl.rarity}]`\n"
+            f"✨ *{name.upper()}*\n"
+            f"🏢 {group}\n"
+            f"📊 Rareza: {theme['emoji']} ({tmpl.rarity})\n"
             f"━━━━━━━━━━━━━━━━━━\n"
-            f"🎤 `{tmpl.base_vocal}` | 💃 `{tmpl.base_dance}` | 🎧 `{tmpl.base_rap}`\n\n"
-            f"💰 Puntos restantes: `{u.points}`"
+            f"🎤 {tmpl.base_vocal} | 💃 {tmpl.base_dance} | 🎧 {tmpl.base_rap}\n\n"
+            f"💰 Puntos restantes: {u.points}"
         )
 
         await q.edit_message_text(
