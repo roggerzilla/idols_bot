@@ -11,7 +11,7 @@ from storage import (
 from config import NSFW_EVENTS, CHARITY_EVENTS, RARITY_CONFIG
 
 
-def create_and_broadcast_event(application, force_type=None):
+async def create_and_broadcast_event(application, force_type=None):
     """
     Creates a global event and sends it to ALL registered groups.
     Called by scheduler automatically or by admin /evento command.
@@ -72,7 +72,7 @@ def create_and_broadcast_event(application, force_type=None):
 
     for chat_id, group in groups.items():
         try:
-            msg = application.bot.send_message(
+            msg = await application.bot.send_message(
                 chat_id=chat_id,
                 text=text,
                 reply_markup=keyboard,

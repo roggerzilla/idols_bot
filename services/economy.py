@@ -58,10 +58,10 @@ def process_maintenance(user_id: int) -> dict:
 def perform_comeback(user_id: int, idol_id: int) -> dict | str:
     """Album release: costs points + energy, rewards based on stats/morale/rng"""
     idols = get_all_idols()
-    if idol_id not in idols:
+    if str(idol_id) not in idols:
         return "error"
 
-    idol = idols[idol_id]
+    idol = idols[str(idol_id)]
     if idol["user_id"] != user_id:
         return "not_owner"
 
@@ -131,10 +131,10 @@ def perform_comeback(user_id: int, idol_id: int) -> dict | str:
 def train_idol(user_id: int, idol_id: int) -> dict | str:
     """Training: costs points, boosts a random stat, uses energy"""
     idols = get_all_idols()
-    if idol_id not in idols:
+    if str(idol_id) not in idols:
         return "error"
 
-    idol = idols[idol_id]
+    idol = idols[str(idol_id)]
     if idol["user_id"] != user_id:
         return "not_owner"
 
@@ -186,10 +186,10 @@ def train_idol(user_id: int, idol_id: int) -> dict | str:
 def train_nsfw(user_id: int, idol_id: int, stat_type: str) -> dict | str:
     """Entrena un stat NSFW específico"""
     idols = get_all_idols()
-    if idol_id not in idols:
+    if str(idol_id) not in idols:
         return "error"
 
-    idol = idols[idol_id]
+    idol = idols[str(idol_id)]
     if idol["user_id"] != user_id:
         return "not_owner"
 
@@ -239,10 +239,10 @@ def train_nsfw(user_id: int, idol_id: int, stat_type: str) -> dict | str:
 def greet_idol(user_id: int, idol_id: int) -> dict | str:
     """Greet: costs a bit of energy, restores morale"""
     idols = get_all_idols()
-    if idol_id not in idols:
+    if str(idol_id) not in idols:
         return "error"
 
-    idol = idols[idol_id]
+    idol = idols[str(idol_id)]
     if idol["user_id"] != user_id:
         return "not_owner"
 
@@ -277,10 +277,10 @@ def greet_idol(user_id: int, idol_id: int) -> dict | str:
 def rest_idol(user_id: int, idol_id: int) -> dict | str:
     """Rest: restores energy"""
     idols = get_all_idols()
-    if idol_id not in idols:
+    if str(idol_id) not in idols:
         return "error"
 
-    idol = idols[idol_id]
+    idol = idols[str(idol_id)]
     if idol["user_id"] != user_id:
         return "not_owner"
 
@@ -365,10 +365,10 @@ def gacha_pull(user_id: int) -> dict | str:
 def start_world_tour(user_id: int, idol_id: int) -> dict | str:
     """Locks an idol for world tour (12 hours)"""
     idols = get_all_idols()
-    if idol_id not in idols:
+    if str(idol_id) not in idols:
         return "error"
 
-    idol = idols[idol_id]
+    idol = idols[str(idol_id)]
     if idol["user_id"] != user_id:
         return "not_owner"
 
@@ -399,10 +399,10 @@ def start_world_tour(user_id: int, idol_id: int) -> dict | str:
 def list_idol_for_sale(user_id: int, idol_id: int, price: int) -> str:
     """Put an idol on the market"""
     idols = get_all_idols()
-    if idol_id not in idols:
+    if str(idol_id) not in idols:
         return "not_found"
 
-    idol = idols[idol_id]
+    idol = idols[str(idol_id)]
     if idol["user_id"] != user_id:
         return "not_owner"
 
@@ -419,10 +419,10 @@ def list_idol_for_sale(user_id: int, idol_id: int, price: int) -> str:
 def buy_idol(buyer_id: int, idol_id: int) -> dict | str:
     """Buy an idol from the market"""
     idols = get_all_idols()
-    if idol_id not in idols:
+    if str(idol_id) not in idols:
         return "not_found"
 
-    idol = idols[idol_id]
+    idol = idols[str(idol_id)]
     if not idol.get("for_sale", False):
         return "not_listed"
 
@@ -457,10 +457,10 @@ def buy_idol(buyer_id: int, idol_id: int) -> dict | str:
 def cancel_sale(user_id: int, idol_id: int) -> bool:
     """Remove idol from market"""
     idols = get_all_idols()
-    if idol_id not in idols:
+    if str(idol_id) not in idols:
         return False
 
-    idol = idols[idol_id]
+    idol = idols[str(idol_id)]
     if idol["user_id"] != user_id:
         return False
 
@@ -474,10 +474,10 @@ def cancel_sale(user_id: int, idol_id: int) -> bool:
 def calculate_event_reward(user_id: int, idol_id: int) -> dict | None:
     """Calcula recompensa basada en rareza + stats totales (básicos + NSFW)"""
     idols = get_all_idols()
-    if idol_id not in idols:
+    if str(idol_id) not in idols:
         return None
 
-    idol = idols[idol_id]
+    idol = idols[str(idol_id)]
     if idol["user_id"] != user_id:
         return None
 

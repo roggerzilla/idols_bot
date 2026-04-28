@@ -47,7 +47,7 @@ def get_all_users() -> Dict[int, dict]:
 def get_user(user_id: int) -> Optional[dict]:
     """Obtiene un usuario por ID."""
     users = get_all_users()
-    return users.get(user_id)
+    return users.get(str(user_id))
 
 
 def process_maintenance(user_id: int) -> dict:
@@ -95,7 +95,7 @@ def create_user(user_id: int, username: str = None) -> dict:
         "idols": []
     }
 
-    users[user_id] = new_user
+    users[str(user_id)] = new_user
     save_json(USERS_FILE, users)
 
     # Verificar que se guardó correctamente
@@ -106,14 +106,15 @@ def create_user(user_id: int, username: str = None) -> dict:
 def update_user(user_id: int, **kwargs) -> Optional[dict]:
     """Actualiza un usuario."""
     users = get_all_users()
-    if user_id not in users:
+    key = str(user_id)
+    if key not in users:
         return None
 
-    for key, value in kwargs.items():
-        users[user_id][key] = value
+    for k, value in kwargs.items():
+        users[key][k] = value
 
     save_json(USERS_FILE, users)
-    return users[user_id]
+    return users[key]
 
 
 def add_points(user_id: int, amount: int) -> Optional[dict]:
@@ -124,7 +125,9 @@ def add_points(user_id: int, amount: int) -> Optional[dict]:
         user = get_user(user_id)
 
     user["points"] += amount
-    save_json(USERS_FILE, {user_id: user})
+    all_users = get_all_users()
+    all_users[str(user_id)] = user
+    save_json(USERS_FILE, all_users)
     return user
 
 
@@ -136,7 +139,9 @@ def deduct_points(user_id: int, amount: int) -> Optional[dict]:
         user = get_user(user_id)
 
     user["points"] -= amount
-    save_json(USERS_FILE, {user_id: user})
+    all_users = get_all_users()
+    all_users[str(user_id)] = user
+    save_json(USERS_FILE, all_users)
     return user
 
 
@@ -150,7 +155,7 @@ def get_all_idols() -> Dict[int, dict]:
 def get_user_idols(user_id: int) -> List[dict]:
     """Obtiene todas las idols de un usuario."""
     all_idols = get_all_idols()
-    return [idol for idol in all_idols.values() if idol["user_id"] == user_id]
+    return [idol for idol in all_idols.values() if idol.get("user_id") == user_id]
 
 
 def create_idol(
@@ -195,7 +200,7 @@ def create_idol(
         "sale_price": 0
     }
 
-    idols[idol_id] = idol
+    idols[str(idol_id)] = idol
     save_json(IDOLS_FILE, idols)
 
     # Actualizar lista de idols del usuario
@@ -210,30 +215,32 @@ def create_idol(
 def get_idol(idol_id: int) -> Optional[dict]:
     """Obtiene una idol por ID."""
     idols = get_all_idols()
-    return idols.get(idol_id)
+    return idols.get(str(idol_id))
 
 
 def update_idol(idol_id: int, **kwargs) -> Optional[dict]:
     """Actualiza una idol."""
     idols = get_all_idols()
-    if idol_id not in idols:
+    key = str(idol_id)
+    if key not in idols:
         return None
 
-    for key, value in kwargs.items():
-        idols[idol_id][key] = value
+    for k, value in kwargs.items():
+        idols[key][k] = value
 
     save_json(IDOLS_FILE, idols)
-    return idols[idol_id]
+    return idols[key]
 
 
 def delete_idol(idol_id: int) -> bool:
     """Elimina una idol."""
     idols = get_all_idols()
-    if idol_id not in idols:
+    key = str(idol_id)
+    if key not in idols:
         return False
 
-    user_id = idols[idol_id]["user_id"]
-    del idols[idol_id]
+    user_id = idols[key]["user_id"]
+    del idols[key]
     save_json(IDOLS_FILE, idols)
 
     # Actualizar lista de idols del usuario
@@ -275,7 +282,7 @@ def create_event(
         "created_at": now.isoformat()
     }
 
-    events[event_id] = event
+    events[str(event_id)] = event
     save_json(EVENTS_FILE, events)
     return event
 
@@ -283,17 +290,18 @@ def create_event(
 def get_event(event_id: int) -> Optional[dict]:
     """Obtiene un evento por ID."""
     events = get_all_events()
-    return events.get(event_id)
+    return events.get(str(event_id))
 
 
 def take_event(event_id: int, user_id: int) -> bool:
     """Marca un evento como tomado por un usuario."""
     events = get_all_events()
-    if event_id not in events:
+    key = str(event_id)
+    if key not in events:
         return False
 
-    events[event_id]["is_taken"] = True
-    events[event_id]["taken_by_user_id"] = user_id
+    events[key]["is_taken"] = True
+    events[key]["taken_by_user_id"] = user_id
     save_json(EVENTS_FILE, events)
     return True
 
@@ -309,12 +317,12 @@ def add_group(chat_id: int, title: str = "") -> Optional[dict]:
     """Añade un grupo."""
     groups = get_all_groups()
 
-    if chat_id in groups:
-        return groups[chat_id]
+    if str(chat_id) in groups:
+        return groups[str(chat_id)]
 
     now = datetime.utcnow()
 
-    groups[chat_id] = {
+    groups[str(chat_id)] = {
         "chat_id": chat_id,
         "title": title or f"Group_{chat_id}",
         "added_at": now.isoformat()
@@ -326,7 +334,7 @@ def add_group(chat_id: int, title: str = "") -> Optional[dict]:
 def get_group(chat_id: int) -> Optional[dict]:
     """Obtiene un grupo por chat_id."""
     groups = get_all_groups()
-    return groups.get(chat_id)
+    return groups.get(str(chat_id))
 
 
 # ─── EVENT REWARD CALCULATION ──────────────────────────────────
@@ -334,10 +342,11 @@ def get_group(chat_id: int) -> Optional[dict]:
 def calculate_event_reward(user_id: int, idol_id: int) -> dict | None:
     """Calcula recompensa basada en rareza + stats totales (básicos + NSFW)"""
     idols = get_all_idols()
-    if idol_id not in idols:
+    key = str(idol_id)
+    if key not in idols:
         return None
 
-    idol = idols[idol_id]
+    idol = idols[key]
     if idol["user_id"] != user_id:
         return None
 

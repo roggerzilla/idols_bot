@@ -31,7 +31,7 @@ NSFW_STAT_EMOJIS = {
 NSFW_STAT_NAMES = {
     "sensitivity": "Sensibilidad",
     "coqueteo": "Coqueteo",
-    "firzeza_culo": "Firmeza del Culo",
+    "firmeza_culo": "Firmeza del Culo",
     "habilidades_cama": "Habilidades en la Cama",
     "kinky": "Kinky"
 }
@@ -461,14 +461,15 @@ async def nsfw_info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler para el botón Stats NSFW en la tarjeta de idol"""
     q = update.callback_query
     parts = q.data.split("_")
-    iid, idx = int(parts[1]), int(parts[2])
+    # nsfw_info_ID_IDX -> parts = ["nsfw", "info", "ID", "IDX"]
+    iid, idx = int(parts[2]), int(parts[3])
 
     all_idols = get_all_idols()
-    if iid not in all_idols:
+    if str(iid) not in all_idols:
         await q.answer("❌ Idol no encontrada.", show_alert=True)
         return
 
-    idol = all_idols[iid]
+    idol = all_idols[str(iid)]
 
     total_nsfw = (idol.get("sensitivity", 50) + idol.get("coqueteo", 50) +
                   idol.get("firmeza_culo", 50) +
