@@ -100,12 +100,12 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             nav.append(InlineKeyboardButton("▶️", callback_data=f"idols_{idx + 1}"))
         kb = [
             nav,
-            [InlineKeyboardButton("💿 Comeback", callback_data=f"cb_{idol.id}"),
-             InlineKeyboardButton("💪 Entrenar", callback_data=f"tr_{idol.id}")],
-            [InlineKeyboardButton("💬 Saludar", callback_data=f"gr_{idol.id}"),
-             InlineKeyboardButton("😴 Descansar", callback_data=f"rs_{idol.id}")],
-            [InlineKeyboardButton("✈️ Tour", callback_data=f"tour_{idol.id}"),
-             InlineKeyboardButton("🏷️ Vender", callback_data=f"sell_{idol.id}")],
+            [InlineKeyboardButton("💿 Comeback", callback_data=f"cb_{idol.id}_{idx}"),
+             InlineKeyboardButton("💪 Entrenar", callback_data=f"tr_{idol.id}_{idx}")],
+            [InlineKeyboardButton("💬 Saludar", callback_data=f"gr_{idol.id}_{idx}"),
+             InlineKeyboardButton("😴 Descansar", callback_data=f"rs_{idol.id}_{idx}")],
+            [InlineKeyboardButton("✈️ Tour", callback_data=f"tour_{idol.id}_{idx}"),
+             InlineKeyboardButton("🏷️ Vender", callback_data=f"sell_{idol.id}_{idx}")],
             [InlineKeyboardButton("🔙 Menú", callback_data="back_main")],
         ]
         await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
@@ -113,7 +113,8 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ─── COMEBACK ───
 async def comeback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
-    iid = int(q.data.split("_")[1])
+    parts = q.data.split("_")
+    iid, idx = int(parts[1]), int(parts[2])
     async with AsyncSessionLocal() as session:
         r = await perform_comeback(session, q.from_user.id, iid)
         if r == "puntos_insuficientes":
@@ -129,13 +130,14 @@ async def comeback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.edit_message_text(
             f"💿 *COMEBACK de {r['idol_name']}*\n━━━━━━━━━━━━━━━━━━\n"
             f"Resultado: *{r['type']}*\n📈 Score: `{r['score']}`\n💰 Ganancia: `+{r['reward']} pts`",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{context.user_data.get('current_idol_idx', 0)}")]]),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}")]]),
             parse_mode="Markdown")
 
 # ─── TRAIN ───
 async def train_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
-    iid = int(q.data.split("_")[1])
+    parts = q.data.split("_")
+    iid, idx = int(parts[1]), int(parts[2])
     async with AsyncSessionLocal() as session:
         r = await train_idol(session, q.from_user.id, iid)
         if r == "puntos_insuficientes":
@@ -149,13 +151,14 @@ async def train_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.edit_message_text(
             f"💪 *ENTRENAMIENTO de {r['idol_name']}*\n━━━━━━━━━━━━━━━━━━\n"
             f"{r['emoji']} {r['stat'].title()} subió `+{r['boost']}` → `{r['new_val']}`",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{context.user_data.get('current_idol_idx', 0)}")]]),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}")]]),
             parse_mode="Markdown")
 
 # ─── GREET ───
 async def greet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
-    iid = int(q.data.split("_")[1])
+    parts = q.data.split("_")
+    iid, idx = int(parts[1]), int(parts[2])
     async with AsyncSessionLocal() as session:
         r = await greet_idol(session, q.from_user.id, iid)
         if r == "ocupada":
@@ -164,13 +167,14 @@ async def greet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await q.answer("❌ Error.", show_alert=True); return
         await q.edit_message_text(
             f"💬 *¡{r['idol_name']} está feliz!*\n❤️ Moral +{r['morale_gain']} → `{r['new_morale']}/100`",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{context.user_data.get('current_idol_idx', 0)}")]]),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}")]]),
             parse_mode="Markdown")
 
 # ─── REST ───
 async def rest_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
-    iid = int(q.data.split("_")[1])
+    parts = q.data.split("_")
+    iid, idx = int(parts[1]), int(parts[2])
     async with AsyncSessionLocal() as session:
         r = await rest_idol(session, q.from_user.id, iid)
         if r == "ocupada":
@@ -179,13 +183,14 @@ async def rest_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await q.answer("❌ Error.", show_alert=True); return
         await q.edit_message_text(
             f"😴 *{r['idol_name']} descansó*\n⚡ Energía +{r['energy_gain']} → `{r['new_energy']}/100`",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{context.user_data.get('current_idol_idx', 0)}")]]),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}")]]),
             parse_mode="Markdown")
 
 # ─── TOUR ───
 async def tour_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
-    iid = int(q.data.split("_")[1])
+    parts = q.data.split("_")
+    iid, idx = int(parts[1]), int(parts[2])
     async with AsyncSessionLocal() as session:
         r = await start_world_tour(session, q.from_user.id, iid)
         if isinstance(r, dict):
@@ -198,20 +203,21 @@ async def tour_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             t = "❌ No disponible para tour (debe estar activa y no en el mercado)."
         
         await q.edit_message_text(t,
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{context.user_data.get('current_idol_idx', 0)}")]]),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}")]]),
             parse_mode="Markdown")
 
 # ─── SELL (put on market) ───
 async def sell_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
-    iid = int(q.data.split("_")[1])
+    parts = q.data.split("_")
+    iid, idx = int(parts[1]), int(parts[2])
     # Ask for price via preset buttons
     kb = [
-        [InlineKeyboardButton("500 pts", callback_data=f"listsell_{iid}_500"),
-         InlineKeyboardButton("1000 pts", callback_data=f"listsell_{iid}_1000")],
-        [InlineKeyboardButton("2000 pts", callback_data=f"listsell_{iid}_2000"),
-         InlineKeyboardButton("5000 pts", callback_data=f"listsell_{iid}_5000")],
-        [InlineKeyboardButton("🔙 Cancelar", callback_data=f"idols_{context.user_data.get('current_idol_idx', 0)}")],
+        [InlineKeyboardButton("500 pts", callback_data=f"listsell_{iid}_{idx}_500"),
+         InlineKeyboardButton("1000 pts", callback_data=f"listsell_{iid}_{idx}_1000")],
+        [InlineKeyboardButton("2000 pts", callback_data=f"listsell_{iid}_{idx}_2000"),
+         InlineKeyboardButton("5000 pts", callback_data=f"listsell_{iid}_{idx}_5000")],
+        [InlineKeyboardButton("🔙 Cancelar", callback_data=f"idols_{idx}")],
     ]
     await q.edit_message_text("🏷️ *¿A qué precio quieres vender esta idol?*",
         reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
