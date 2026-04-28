@@ -463,7 +463,7 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
 
     kb = [
         nav,
-        [InlineKeyboardButton(f"🔞 USAR ESTA IDOL", callback_data=f"use_idol_{eid}_{idol['id']}")],
+        [InlineKeyboardButton(f"🔞 USAR ESTA IDOL", callback_data=f"use_idol_{eid}_{idol['id']}_{owner_id}")],
         [InlineKeyboardButton("🔙 Cancelar", callback_data=f"claim_{eid}")]
     ]
 
@@ -479,8 +479,13 @@ async def use_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """Ejecuta evento NSFW con la idol seleccionada"""
     q = update.callback_query
     parts = q.data.split("_")
-    eid = int(parts[1])
-    iid = int(parts[2])
+    eid = int(parts[2])
+    iid = int(parts[3])
+    owner_id = int(parts[4]) if len(parts) > 4 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No puedes usar idols ajenas en este evento.", show_alert=True)
+        return
 
     # Calcular recompensa
     reward_data = calculate_event_reward(q.from_user.id, iid)
@@ -655,8 +660,8 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     kb = [
         nav,
-        [InlineKeyboardButton(f"🔞 USAR ESTA IDOL", callback_data=f"use_idol_{eid}_{idol['id']}")],
-        [InlineKeyboardButton("🔙 Cancelar", callback_data=f"claim_{eid}")]
+        [InlineKeyboardButton(f"🔞 USAR ESTA IDOL", callback_data=f"use_idol_{eid}_{idol['id']}_{uid}")],
+        [InlineKeyboardButton(" Anular", callback_data="noop")]
     ]
 
     await q.edit_message_text(

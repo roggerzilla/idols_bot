@@ -47,6 +47,10 @@ def main():
     is_pa = os.path.exists("/home/monkey98")
 
     builder = ApplicationBuilder().token(TELEGRAM_TOKEN)
+    
+    # Usar HTTPXRequest para mayor estabilidad en Python 3.13
+    request = HTTPXRequest(connection_pool_size=8)
+    builder.request(request)
 
     if is_pa:
         builder.proxy(proxy_url).get_updates_proxy(proxy_url)
@@ -82,8 +86,8 @@ def main():
     application.add_handler(CallbackQueryHandler(market_handler, pattern=r"^market_\d+_\d+$"))
     application.add_handler(CallbackQueryHandler(buy_handler, pattern=r"^buy_\d+$"))
     application.add_handler(CallbackQueryHandler(claim_handler, pattern=r"^claim_\d+(_\d+)?$"))
-    application.add_handler(CallbackQueryHandler(select_idol_for_event, pattern=r"^sel_event_\d+_\d+$"))
-    application.add_handler(CallbackQueryHandler(use_idol_for_event, pattern=r"^use_idol_\d+_\d+$"))
+    application.add_handler(CallbackQueryHandler(select_idol_for_event, pattern=r"^sel_event_\d+_\d+_\d+$"))
+    application.add_handler(CallbackQueryHandler(use_idol_for_event, pattern=r"^use_idol_\d+_\d+_\d+$"))
     application.add_handler(CallbackQueryHandler(nsfw_info_handler, pattern=r"^nsfw_info_\d+_\d+_\d+$"))
     application.add_handler(CallbackQueryHandler(nsfw_train_handler, pattern=r"^nsfw_tr_"))
     application.add_handler(CallbackQueryHandler(help_points_handler, pattern="^help_pts_\\d+$"))
