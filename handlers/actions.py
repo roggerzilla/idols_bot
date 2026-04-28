@@ -333,6 +333,22 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await session.commit()
         await q.edit_message_text(result_text, parse_mode="Markdown")
 
+# ─── HELP POINTS ───
+async def help_points_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    text = (
+        "💰 *¿CÓMO GANAR PUNTOS?*\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "📀 *Comebacks:* La forma principal. Envía a tu idol a lanzar un álbum. Si es un MEGA HIT, ¡ganarás muchísimos puntos!\n\n"
+        "🔞 *Eventos Globales:* En los grupos aparecerán contratos. Si eres el primero en reclamarlos, ganarás puntos según la rareza de tu mejor idol.\n\n"
+        "🏪 *Mercado:* Si tienes idols que no usas, ponlas en venta. Otros CEOs pueden comprarlas y tú recibirás el pago.\n\n"
+        "✈️ *World Tours:* Próximamente los tours generarán beneficios pasivos mientras tu idol está de viaje.\n"
+        "━━━━━━━━━━━━━━━━━━"
+    )
+    kb = [[InlineKeyboardButton("🔙 Volver", callback_data="back_main")]]
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+
 # ─── NOOP (for page indicators) ───
 async def noop_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()

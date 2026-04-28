@@ -6,7 +6,7 @@ from handlers.commands import start, profile_handler, back_main, admin_evento, h
 from handlers.actions import (
     gacha_handler, idols_handler, comeback_handler, train_handler,
     greet_handler, rest_handler, tour_handler, sell_handler, list_sell_handler,
-    market_handler, buy_handler, claim_handler, noop_handler
+    market_handler, buy_handler, claim_handler, noop_handler, help_points_handler
 )
 from services.scheduler_tasks import process_all_maintenances
 from services.events import create_and_broadcast_event
@@ -72,6 +72,7 @@ def main():
     application.add_handler(CallbackQueryHandler(market_handler, pattern=r"^market_\d+$"))
     application.add_handler(CallbackQueryHandler(buy_handler, pattern=r"^buy_\d+$"))
     application.add_handler(CallbackQueryHandler(claim_handler, pattern=r"^claim_\d+$"))
+    application.add_handler(CallbackQueryHandler(help_points_handler, pattern="^help_pts$"))
     application.add_handler(CallbackQueryHandler(noop_handler, pattern="^noop$"))
 
     print("🤖 Bot running: Gacha, Market, Events, Admin commands active")

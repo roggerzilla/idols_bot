@@ -24,9 +24,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await session.commit()
         kb = [
             [InlineKeyboardButton("👤 Perfil", callback_data="profile")],
-            [InlineKeyboardButton("👯 Mis Idols", callback_data="idols_0")],
-            [InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data="gacha")],
-            [InlineKeyboardButton("🏪 Mercado", callback_data="market_0")],
+            [InlineKeyboardButton("👯 Mis Idols", callback_data="idols_0"),
+             InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data="gacha")],
+            [InlineKeyboardButton("🏪 Mercado", callback_data="market_0"),
+             InlineKeyboardButton("💰 Ganar Puntos", callback_data="help_pts")],
         ]
         await update.message.reply_text(
             f"🏠 *Panel de CEO — {user.username}*\n💰 Puntos: `{user.points}`",
@@ -64,9 +65,10 @@ async def back_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
         u = (await session.execute(select(User).where(User.id == q.from_user.id))).scalar_one()
         kb = [
             [InlineKeyboardButton("👤 Perfil", callback_data="profile")],
-            [InlineKeyboardButton("👯 Mis Idols", callback_data="idols_0")],
-            [InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data="gacha")],
-            [InlineKeyboardButton("🏪 Mercado", callback_data="market_0")],
+            [InlineKeyboardButton("👯 Mis Idols", callback_data="idols_0"),
+             InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data="gacha")],
+            [InlineKeyboardButton("🏪 Mercado", callback_data="market_0"),
+             InlineKeyboardButton("💰 Ganar Puntos", callback_data="help_pts")],
         ]
         await q.edit_message_text(f"🏠 *Panel de CEO*\n💰 Puntos: `{u.points}`",
             reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
