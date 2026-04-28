@@ -1,5 +1,6 @@
 import logging
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
+from telegram.request import HTTPXRequest
 from config import TELEGRAM_TOKEN
 from handlers.commands import start, profile_handler, back_main, fandoms_menu, join_fandom_handler
 from handlers.actions import (
@@ -31,10 +32,19 @@ def main():
     # CONFIGURACIÓN PROXY PARA PYTHONANYWHERE
     proxy_url = "http://proxy.server:3128"
     
+    # Configuramos timeouts más largos y reintentos para el proxy de PA
+    request_config = HTTPXRequest(
+        proxy_url=proxy_url,
+        connect_timeout=30.0,
+        read_timeout=30.0,
+        write_timeout=30.0,
+        pool_timeout=30.0
+    )
+    
     application = (
         ApplicationBuilder()
         .token(TELEGRAM_TOKEN)
-        .proxy(proxy_url)
+        .request(request_config)
         .get_updates_proxy(proxy_url)
         .post_init(post_init)
         .build()
