@@ -15,14 +15,18 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     import asyncio
     import random
     q = update.callback_query
-    await q.answer()
     uid = q.from_user.id
     async with AsyncSessionLocal() as session:
         u = (await session.execute(select(User).where(User.id == uid))).scalar_one()
         if u.points < 500:
-            await q.answer("❌ Necesitas 500 pts.", show_alert=True)
+            await q.edit_message_text(
+                f"❌ *PUNTOS INSUFICIENTES*\n\nNecesitas `500 pts` para usar el Gacha.\n💰 Tus puntos: `{u.points}`",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data="back_main")]]),
+                parse_mode="Markdown"
+            )
             return
         
+        await q.answer() # Answer now that we know we proceed
         u.points -= 500
         await session.commit() # Commit point deduction before animation
 
