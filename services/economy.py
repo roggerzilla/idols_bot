@@ -3,7 +3,24 @@ import datetime
 from sqlalchemy import select
 from models import User, UserIdol, IdolTemplate, IdolStatus, GlobalEvent, BotGroup
 from database import AsyncSessionLocal
-from config import RARITY_CONFIG, COMEBACK_BASE_COST, MAINTENANCE_COST_BASE, TRAIN_COST
+from config import RARITY_CONFIG, COMEBACK_BASE_COST, MAINTENANCE_COST_BASE, TRAIN_COST, TRAIN_NSFW_COST
+
+# NSFW Stat Emojis
+NSFW_STAT_EMOJIS = {
+    "sensitivity": "❤️",
+    "coqueteo": "💕",
+    "firmeza_culo": "🍑",
+    "habilidades_cama": "🔥",
+    "kinky": "😈"
+}
+
+NSFW_STAT_NAMES = {
+    "sensitivity": "Sensibilidad",
+    "coqueteo": "Coqueteo",
+    "firmeza_culo": "Firmeza del Culo",
+    "habilidades_cama": "Habilidades en la Cama",
+    "kinky": "Kinky"
+}
 
 async def process_maintenance(session, user_id):
     """Deducts maintenance fees; puts idols in hiatus if broke"""
@@ -95,12 +112,12 @@ async def train_idol(session, user_id, idol_id):
     )
     data = result.first()
     if not data: return "error"
-    
+
     idol, template = data
-    
+
     user_result = await session.execute(select(User).where(User.id == user_id))
     user = user_result.scalar_one()
-    
+
     if idol.status == IdolStatus.WORLD_TOUR:
         now = datetime.datetime.utcnow()
         if idol.busy_until and now < idol.busy_until:
@@ -113,21 +130,84 @@ async def train_idol(session, user_id, idol_id):
         return "puntos_insuficientes"
     if idol.energy < 15:
         return "sin_energia"
-    
+
     user.points -= TRAIN_COST
     idol.energy -= 15
-    
+
     # Random stat boost
     stat = random.choice(["vocal", "dance", "rap"])
     boost = random.randint(1, 5)
     current = getattr(idol, stat)
     new_val = min(99, current + boost)
     setattr(idol, stat, new_val)
-    
+
     await session.commit()
-    
+
     stat_emoji = {"vocal": "🎤", "dance": "💃", "rap": "🎧"}[stat]
     return {"stat": stat, "emoji": stat_emoji, "boost": boost, "new_val": new_val, "idol_name": template.name}
+
+
+async def train_nsfw(session, user_id, idol_id, stat_type):
+    """Entrena un stat NSFW específico (sensitivity, coqueteo, firmeza_culo, habilidades_cama, kinky)"""
+    result = await session.execute(
+        select(UserIdol, IdolTemplate)
+        .join(IdolTemplate)
+        .where(UserIdol.id == idol_id, UserIdol.user_id == user_id)
+    )
+    data = result.first()
+    if not data: return "error"
+
+    idol, template = data
+
+    user_result = await session.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one()
+
+    if idol.status == IdolStatus.WORLD_TOUR:
+        now = datetime.datetime.utcnow()
+        if idol.busy_until and now < idol.busy_until:
+            return "ocupada"
+        else:
+            idol.status = IdolStatus.ACTIVE
+            idol.busy_until = None
+
+    if user.points < TRAIN_NSFW_COST:
+        return "puntos_insuficientes"
+    if idol.energy < 15:
+        return "sin_energia"
+
+    user.points -= TRAIN_NSFW_COST
+    idol.energy -= 15
+
+    # Boost random en el stat seleccionado
+    boost = random.randint(1, 5)
+    current = getattr(idol, stat_type)
+    new_val = min(100, current + boost)
+    setattr(idol, stat_type, new_val)
+
+    await session.commit()
+
+    stat_names = {
+        "sensitivity": "Sensibilidad",
+        "coqueteo": "Coqueteo",
+        "firmeza_culo": "Firmeza del Culo",
+        "habilidades_cama": "Habilidades en la Cama",
+        "kinky": "Kinky"
+    }
+    stat_emojis = {
+        "sensitivity": "❤️",
+        "coqueteo": "💕",
+        "firmeza_culo": "🍑",
+        "habilidades_cama": "🔥",
+        "kinky": "😈"
+    }
+
+    return {
+        "stat": stat_names.get(stat_type, stat_type),
+        "emoji": stat_emojis.get(stat_type, "✨"),
+        "boost": boost,
+        "new_val": new_val,
+        "idol_name": template.name
+    }
 
 async def greet_idol(session, user_id, idol_id):
     """Greet: costs a bit of energy, restores morale"""
@@ -209,6 +289,11 @@ async def gacha_pull(session, user_id):
         vocal=template.base_vocal,
         dance=template.base_dance,
         rap=template.base_rap,
+        sensitivity=50,
+        coqueteo=50,
+        firmeza_culo=50,
+        habilidades_cama=50,
+        kinky=50,
         contract_expiry=datetime.datetime.utcnow() + datetime.timedelta(days=7)
     )
     
@@ -298,3 +383,43 @@ async def cancel_sale(session, user_id, idol_id):
     idol.sale_price = 0
     await session.commit()
     return True
+
+
+async def calculate_event_reward(session, user_id, idol_id):
+    """Calcula recompensa basada en rareza + stats totales (básicos + NSFW)"""
+    result = await session.execute(
+        select(UserIdol, IdolTemplate)
+        .join(IdolTemplate)
+        .where(UserIdol.id == idol_id, UserIdol.user_id == user_id)
+    )
+    data = result.first()
+    if not data: return None
+
+    idol, template = data
+
+    # Stats básicos + NSFW
+    basic_stats = idol.vocal + idol.dance + idol.rap
+    nsfw_stats = (idol.sensitivity + idol.coqueteo + idol.firmeza_culo +
+                  idol.habilidades_cama + idol.kinky)
+    total_stats = basic_stats + nsfw_stats
+
+    # Base points según rareza
+    rarity_mult = RARITY_CONFIG[template.rarity]['mult']
+    base_points = int(1000 * rarity_mult)  # Base: 1000, 1500, 2500, 5000, 10000
+
+    # Bonus por stats (cada 100 stats da +10% de bonus)
+    stat_bonus = 1 + (total_stats / 1000)
+
+    reward = int(base_points * stat_bonus)
+
+    return {
+        "reward": reward,
+        "base_points": base_points,
+        "rarity_mult": rarity_mult,
+        "stat_bonus": round(stat_bonus, 2),
+        "total_stats": total_stats,
+        "basic_stats": basic_stats,
+        "nsfw_stats": nsfw_stats,
+        "idol_name": template.name,
+        "rarity": template.rarity
+    }

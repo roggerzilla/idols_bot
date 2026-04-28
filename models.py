@@ -36,12 +36,19 @@ class UserIdol(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(BigInteger, ForeignKey("users.id"))
     template_id = Column(Integer, ForeignKey("idol_templates.id"))
-    
+
     vocal = Column(Integer)
     dance = Column(Integer)
     rap = Column(Integer)
     morale = Column(Integer, default=100)
     energy = Column(Integer, default=100)
+
+    # NSFW Stats
+    sensitivity = Column(Integer, default=50)  # Sensibilidad
+    coqueteo = Column(Integer, default=50)     # Coqueteo
+    firmeza_culo = Column(Integer, default=50) # Firmeza del culo
+    habilidades_cama = Column(Integer, default=50) # Habilidades en la cama
+    kinky = Column(Integer, default=50)        # Kinky
     
     status = Column(Enum(IdolStatus), default=IdolStatus.ACTIVE)
     busy_until = Column(DateTime, nullable=True)
