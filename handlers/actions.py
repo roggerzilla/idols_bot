@@ -79,7 +79,16 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         idx = max(0, min(idx, len(all_idols) - 1))
         idol, tmpl = all_idols[idx]
-        # Store current idol index in user_data for commands like /vender
+
+        # Auto-refresh status if busy time passed
+        import datetime
+        if idol.status == IdolStatus.WORLD_TOUR and idol.busy_until:
+            if datetime.datetime.utcnow() >= idol.busy_until:
+                idol.status = IdolStatus.ACTIVE
+                idol.busy_until = None
+                await session.commit()
+
+        # Store current idol index
         context.user_data["current_idol_id"] = idol.id
         context.user_data["current_idol_idx"] = idx
         text = format_idol_card(idol, tmpl, idx + 1, len(all_idols))
@@ -111,8 +120,10 @@ async def comeback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await q.answer("❌ Necesitas 500 pts.", show_alert=True); return
         if r == "sin_energia":
             await q.answer("😴 Sin energía. Descansa a tu idol.", show_alert=True); return
+        if r == "ocupada":
+            await q.answer("✈️ Idol en Tour. Espera a que regrese.", show_alert=True); return
         if r == "no_disponible":
-            await q.answer("❌ Idol no disponible.", show_alert=True); return
+            await q.answer("❌ Idol no disponible (hiatus o mercado).", show_alert=True); return
         if r == "error":
             await q.answer("❌ Error.", show_alert=True); return
         await q.edit_message_text(
@@ -131,6 +142,8 @@ async def train_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await q.answer("❌ Necesitas 200 pts.", show_alert=True); return
         if r == "sin_energia":
             await q.answer("😴 Sin energía.", show_alert=True); return
+        if r == "ocupada":
+            await q.answer("✈️ Idol en Tour. Espera a que regrese.", show_alert=True); return
         if r == "error":
             await q.answer("❌ Error.", show_alert=True); return
         await q.edit_message_text(
@@ -145,6 +158,8 @@ async def greet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     iid = int(q.data.split("_")[1])
     async with AsyncSessionLocal() as session:
         r = await greet_idol(session, q.from_user.id, iid)
+        if r == "ocupada":
+            await q.answer("✈️ Idol en Tour. Espera a que regrese.", show_alert=True); return
         if r == "error":
             await q.answer("❌ Error.", show_alert=True); return
         await q.edit_message_text(
@@ -158,6 +173,8 @@ async def rest_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     iid = int(q.data.split("_")[1])
     async with AsyncSessionLocal() as session:
         r = await rest_idol(session, q.from_user.id, iid)
+        if r == "ocupada":
+            await q.answer("✈️ Idol en Tour. Espera a que regrese.", show_alert=True); return
         if r == "error":
             await q.answer("❌ Error.", show_alert=True); return
         await q.edit_message_text(
@@ -170,11 +187,16 @@ async def tour_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     iid = int(q.data.split("_")[1])
     async with AsyncSessionLocal() as session:
-        ok = await start_world_tour(session, q.from_user.id, iid)
-        if ok:
-            t = "✈️ *TOUR INICIADO*\nTu idol está generando beneficios en gira."
+        r = await start_world_tour(session, q.from_user.id, iid)
+        if isinstance(r, dict):
+            # Show unlock time
+            until = r['until'].strftime("%H:%M")
+            t = f"✈️ *TOUR INICIADO*\n\nTu idol ha comenzado una gira mundial. Generará beneficios pasivos y regresará a las `{until} UTC`."
+        elif r == "ya_en_tour":
+            t = "✈️ Esta idol ya está en medio de un tour."
         else:
-            t = "❌ No disponible (ya está en tour o hiatus)."
+            t = "❌ No disponible para tour (debe estar activa y no en el mercado)."
+        
         await q.edit_message_text(t,
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{context.user_data.get('current_idol_idx', 0)}")]]),
             parse_mode="Markdown")

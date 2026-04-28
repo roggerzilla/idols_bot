@@ -44,6 +44,7 @@ class UserIdol(Base):
     energy = Column(Integer, default=100)
     
     status = Column(Enum(IdolStatus), default=IdolStatus.ACTIVE)
+    busy_until = Column(DateTime, nullable=True)
     contract_expiry = Column(DateTime)
     
     # Marketplace

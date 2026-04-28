@@ -49,6 +49,14 @@ async def perform_comeback(session, user_id, idol_id):
     if idol.energy < 20:
         return "sin_energia"
     
+    if idol.status == IdolStatus.WORLD_TOUR:
+        now = datetime.datetime.utcnow()
+        if idol.busy_until and now < idol.busy_until:
+            return "ocupada"
+        else:
+            idol.status = IdolStatus.ACTIVE
+            idol.busy_until = None
+    
     if idol.status != IdolStatus.ACTIVE:
         return "no_disponible"
     
@@ -93,6 +101,14 @@ async def train_idol(session, user_id, idol_id):
     user_result = await session.execute(select(User).where(User.id == user_id))
     user = user_result.scalar_one()
     
+    if idol.status == IdolStatus.WORLD_TOUR:
+        now = datetime.datetime.utcnow()
+        if idol.busy_until and now < idol.busy_until:
+            return "ocupada"
+        else:
+            idol.status = IdolStatus.ACTIVE
+            idol.busy_until = None
+
     if user.points < TRAIN_COST:
         return "puntos_insuficientes"
     if idol.energy < 15:
@@ -125,6 +141,14 @@ async def greet_idol(session, user_id, idol_id):
     
     idol, template = data
     
+    if idol.status == IdolStatus.WORLD_TOUR:
+        now = datetime.datetime.utcnow()
+        if idol.busy_until and now < idol.busy_until:
+            return "ocupada"
+        else:
+            idol.status = IdolStatus.ACTIVE
+            idol.busy_until = None
+    
     morale_gain = random.randint(10, 25)
     idol.morale = min(100, idol.morale + morale_gain)
     idol.energy = max(0, idol.energy - 5)
@@ -143,6 +167,14 @@ async def rest_idol(session, user_id, idol_id):
     if not data: return "error"
     
     idol, template = data
+    
+    if idol.status == IdolStatus.WORLD_TOUR:
+        now = datetime.datetime.utcnow()
+        if idol.busy_until and now < idol.busy_until:
+            return "ocupada"
+        else:
+            idol.status = IdolStatus.ACTIVE
+            idol.busy_until = None
     
     energy_gain = random.randint(20, 40)
     idol.energy = min(100, idol.energy + energy_gain)
@@ -185,17 +217,29 @@ async def gacha_pull(session, user_id):
     return template
 
 async def start_world_tour(session, user_id, idol_id):
-    """Locks an idol for world tour"""
+    """Locks an idol for world tour (12 hours)"""
     result = await session.execute(
         select(UserIdol).where(UserIdol.id == idol_id, UserIdol.user_id == user_id)
     )
     idol = result.scalar_one_or_none()
-    if not idol or idol.status != IdolStatus.ACTIVE:
-        return False
+    if not idol: return "error"
+    
+    if idol.status == IdolStatus.WORLD_TOUR:
+        now = datetime.datetime.utcnow()
+        if idol.busy_until and now < idol.busy_until:
+            return "ya_en_tour"
+        else:
+            idol.status = IdolStatus.ACTIVE
+            idol.busy_until = None
+
+    if idol.status != IdolStatus.ACTIVE:
+        return "no_disponible"
         
+    # Lock for 12 hours
     idol.status = IdolStatus.WORLD_TOUR
+    idol.busy_until = datetime.datetime.utcnow() + datetime.timedelta(hours=12)
     await session.commit()
-    return True
+    return {"until": idol.busy_until}
 
 # ─── MARKETPLACE ───
 
