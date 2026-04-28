@@ -674,6 +674,13 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ─── HELP POINTS ───
 async def help_points_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
+    parts = q.data.split("_")
+    owner_id = int(parts[2]) if len(parts) > 2 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No puedes abrir menús ajenos.", show_alert=True)
+        return
+
     await q.answer()
 
     text = (
@@ -693,6 +700,13 @@ async def help_points_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def help_game_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra la guía completa y detallada del juego"""
     q = update.callback_query
+    parts = q.data.split("_")
+    owner_id = int(parts[2]) if len(parts) > 2 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No puedes abrir menús ajenos.", show_alert=True)
+        return
+
     await q.answer()
     
     text = (

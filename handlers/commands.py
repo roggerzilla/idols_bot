@@ -128,6 +128,13 @@ async def profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def back_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
+    parts = q.data.split("_")
+    owner_id = int(parts[2]) if len(parts) > 2 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No puedes usar el menú de otro CEO.", show_alert=True)
+        return
+
     await q.answer()
 
     user = get_user(q.from_user.id)
