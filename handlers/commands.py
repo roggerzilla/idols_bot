@@ -29,9 +29,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🏪 Mercado", callback_data="market_0"),
              InlineKeyboardButton("💰 Ganar Puntos", callback_data="help_pts")],
         ]
-        await update.message.reply_text(
-            f"🏠 *Panel de CEO — {user.username}*\n💰 Puntos: `{user.points}`",
-            reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+        
+        # Retry logic for flaky PythonAnywhere proxy
+        for _ in range(3):
+            try:
+                await update.message.reply_text(
+                    f"🏠 *Panel de CEO — {user.username}*\n💰 Puntos: {user.points}",
+                    reply_markup=InlineKeyboardMarkup(kb), 
+                    parse_mode="Markdown"
+                )
+                break
+            except Exception as e:
+                if "503" in str(e):
+                    import asyncio
+                    await asyncio.sleep(1)
+                    continue
+                raise e
 
 async def admin_evento(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
@@ -70,5 +83,14 @@ async def back_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🏪 Mercado", callback_data="market_0"),
              InlineKeyboardButton("💰 Ganar Puntos", callback_data="help_pts")],
         ]
-        await q.edit_message_text(f"🏠 *Panel de CEO*\n💰 Puntos: `{u.points}`",
-            reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+        for _ in range(3):
+            try:
+                await q.edit_message_text(f"🏠 *Panel de CEO*\n💰 Puntos: `{u.points}`",
+                    reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+                break
+            except Exception as e:
+                if "503" in str(e):
+                    import asyncio
+                    await asyncio.sleep(1)
+                    continue
+                raise e
