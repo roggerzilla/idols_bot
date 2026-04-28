@@ -39,12 +39,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             add_group(chat.id, title=chat.title or "")
 
     kb = [
-        [InlineKeyboardButton("👤 Perfil", callback_data="profile"),
-         InlineKeyboardButton("📖 Ayuda", callback_data="help_game")],
-        [InlineKeyboardButton("👯 Mis Idols", callback_data="idols_0"),
-         InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data="gacha")],
-        [InlineKeyboardButton("🏪 Mercado", callback_data="market_0"),
-         InlineKeyboardButton("💰 Ganar Puntos", callback_data="help_pts")],
+        [InlineKeyboardButton("👤 Perfil", callback_data=f"profile_{user_tg.id}"),
+         InlineKeyboardButton("📖 Ayuda", callback_data=f"help_game_{user_tg.id}")],
+        [InlineKeyboardButton("👯 Mis Idols", callback_data=f"idols_0_{user_tg.id}"),
+         InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data=f"gacha_{user_tg.id}")],
+        [InlineKeyboardButton("🏪 Mercado", callback_data=f"market_0_{user_tg.id}"),
+         InlineKeyboardButton("💰 Ganar Puntos", callback_data=f"help_pts_{user_tg.id}")],
     ]
 
     # Retry logic for flaky PythonAnywhere proxy
@@ -101,7 +101,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
-    await q.answer()
+    parts = q.data.split("_")
+    owner_id = int(parts[1]) if len(parts) > 1 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ Este no es tu perfil.", show_alert=True)
+        return
 
     user = get_user(q.from_user.id)
     if not user:
@@ -116,7 +121,7 @@ async def profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await q.edit_message_text(
         text,
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data="back_main")]]),
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{q.from_user.id}")]]),
         parse_mode="Markdown"
     )
 
@@ -131,12 +136,12 @@ async def back_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = get_user(q.from_user.id)
 
     kb = [
-        [InlineKeyboardButton("👤 Perfil", callback_data="profile"),
-         InlineKeyboardButton("📖 Ayuda", callback_data="help_game")],
-        [InlineKeyboardButton("👯 Mis Idols", callback_data="idols_0"),
-         InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data="gacha")],
-        [InlineKeyboardButton("🏪 Mercado", callback_data="market_0"),
-         InlineKeyboardButton("💰 Ganar Puntos", callback_data="help_pts")],
+        [InlineKeyboardButton("👤 Perfil", callback_data=f"profile_{q.from_user.id}"),
+         InlineKeyboardButton("📖 Ayuda", callback_data=f"help_game_{q.from_user.id}")],
+        [InlineKeyboardButton("👯 Mis Idols", callback_data=f"idols_0_{q.from_user.id}"),
+         InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data=f"gacha_{q.from_user.id}")],
+        [InlineKeyboardButton("🏪 Mercado", callback_data=f"market_0_{q.from_user.id}"),
+         InlineKeyboardButton("💰 Ganar Puntos", callback_data=f"help_pts_{q.from_user.id}")],
     ]
 
     for _ in range(3):

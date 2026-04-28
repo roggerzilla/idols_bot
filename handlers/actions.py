@@ -39,6 +39,13 @@ NSFW_STAT_NAMES = {
 # ─── GACHA ───
 async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
+    parts = q.data.split("_")
+    owner_id = int(parts[1]) if len(parts) > 1 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ Este no es tu menú de Gacha.", show_alert=True)
+        return
+
     uid = q.from_user.id
 
     u = get_user(uid)
@@ -101,25 +108,28 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.edit_message_text(
         reveal_text,
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🎰 Otro Gacha (500 pts)", callback_data="gacha")],
-            [InlineKeyboardButton("🔙 Menú", callback_data="back_main")]
+            [InlineKeyboardButton("🎰 Otro Gacha (500 pts)", callback_data=f"gacha_{uid}")],
+            [InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{uid}")]
         ]), parse_mode="Markdown")
 
 
 # ─── IDOL NAVIGATION (flat, with prev/next) ───
 async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
-    await q.answer()
-
     parts = q.data.split("_")
     idx = int(parts[1]) if len(parts) > 1 else 0
-    uid = q.from_user.id
+    owner_id = int(parts[2]) if len(parts) > 2 else 0
 
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No puedes mover las idols de otro CEO.", show_alert=True)
+        return
+
+    uid = q.from_user.id
     all_idols = get_user_idols(uid)
 
     if not all_idols:
         await q.edit_message_text("📉 No tienes idols. ¡Usa el Gacha!",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data="back_main")]]))
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{uid}")]]))
         return
 
     idx = max(0, min(idx, len(all_idols) - 1))
@@ -141,14 +151,14 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     kb = [
         nav,
-        [InlineKeyboardButton("💿 Comeback", callback_data=f"cb_{idol['id']}_{idx}")],
-        [InlineKeyboardButton("💪 Entrenar", callback_data=f"tr_{idol['id']}_{idx}")],
-        [InlineKeyboardButton("🔞 Stats NSFW", callback_data=f"nsfw_info_{idol['id']}_{idx}")],
-        [InlineKeyboardButton("💬 Saludar", callback_data=f"gr_{idol['id']}_{idx}")],
-        [InlineKeyboardButton("😴 Descansar", callback_data=f"rs_{idol['id']}_{idx}")],
-        [InlineKeyboardButton("✈️ Tour", callback_data=f"tour_{idol['id']}_{idx}")],
-        [InlineKeyboardButton("🏷️ Vender", callback_data=f"sell_{idol['id']}_{idx}")],
-        [InlineKeyboardButton("🔙 Menú", callback_data="back_main")],
+        [InlineKeyboardButton("💿 Comeback", callback_data=f"cb_{idol['id']}_{idx}_{uid}")],
+        [InlineKeyboardButton("💪 Entrenar", callback_data=f"tr_{idol['id']}_{idx}_{uid}")],
+        [InlineKeyboardButton("🔞 Stats NSFW", callback_data=f"nsfw_info_{idol['id']}_{idx}_{uid}")],
+        [InlineKeyboardButton("💬 Saludar", callback_data=f"gr_{idol['id']}_{idx}_{uid}")],
+        [InlineKeyboardButton("😴 Descansar", callback_data=f"rs_{idol['id']}_{idx}_{uid}")],
+        [InlineKeyboardButton("✈️ Tour", callback_data=f"tour_{idol['id']}_{idx}_{uid}")],
+        [InlineKeyboardButton("🏷️ Vender", callback_data=f"sell_{idol['id']}_{idx}_{uid}")],
+        [InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{uid}")],
     ]
 
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
@@ -159,6 +169,11 @@ async def comeback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
     iid, idx = int(parts[1]), int(parts[2])
+    owner_id = int(parts[3]) if len(parts) > 3 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No puedes ordenar acciones a idols de otros.", show_alert=True)
+        return
 
     r = perform_comeback(q.from_user.id, iid)
 
@@ -176,7 +191,7 @@ async def comeback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.edit_message_text(
         f"💿 *COMEBACK de {r['idol_name']}*\n━━━━━━━━━━━━━━━━━━\n"
         f"Resultado: *{r['type']}*\n📈 Score: `{r['score']}`\n💰 Ganancia: `+{r['reward']} pts`",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}")]]),
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")] binary_data=None]),
         parse_mode="Markdown")
 
 
@@ -185,6 +200,11 @@ async def train_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
     iid, idx = int(parts[1]), int(parts[2])
+    owner_id = int(parts[3]) if len(parts) > 3 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ Este entrenamiento no es tuyo.", show_alert=True)
+        return
 
     r = train_idol(q.from_user.id, iid)
 
@@ -200,7 +220,7 @@ async def train_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.edit_message_text(
         f"💪 *ENTRENAMIENTO de {r['idol_name']}*\n━━━━━━━━━━━━━━━━━━\n"
         f"{r['emoji']} {r['stat'].title()} subió `+{r['boost']}` → `{r['new_val']}`",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}")]]),
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")] binary_data=None]),
         parse_mode="Markdown")
 
 
@@ -209,6 +229,11 @@ async def greet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
     iid, idx = int(parts[1]), int(parts[2])
+    owner_id = int(parts[3]) if len(parts) > 3 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ Este saludo no es tuyo.", show_alert=True)
+        return
 
     r = greet_idol(q.from_user.id, iid)
 
@@ -219,7 +244,7 @@ async def greet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await q.edit_message_text(
         f"💬 *¡{r['idol_name']} está feliz!*\n❤️ Moral +{r['morale_gain']} → `{r['new_morale']}/100`",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}")]]),
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]),
         parse_mode="Markdown")
 
 
@@ -228,6 +253,11 @@ async def rest_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
     iid, idx = int(parts[1]), int(parts[2])
+    owner_id = int(parts[3]) if len(parts) > 3 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No puedes dormir a idols de otros.", show_alert=True)
+        return
 
     r = rest_idol(q.from_user.id, iid)
 
@@ -241,7 +271,7 @@ async def rest_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.edit_message_text(
         f"😴 *{r['idol_name']} se fue a dormir*\n⚡ Energía +{r['energy_gain']} → `{r['new_energy']}/100`\n"
         f"Regresará a las `{until} UTC`.",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}")]]),
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]),
         parse_mode="Markdown")
 
 
@@ -250,6 +280,11 @@ async def tour_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
     iid, idx = int(parts[1]), int(parts[2])
+    owner_id = int(parts[3]) if len(parts) > 3 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ Solo el dueño puede iniciar tours.", show_alert=True)
+        return
 
     r = start_world_tour(q.from_user.id, iid)
 
@@ -263,7 +298,7 @@ async def tour_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         t = "❌ No disponible para tour (debe estar activa y no en el mercado)."
 
     await q.edit_message_text(t,
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}")]]),
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]) ,
         parse_mode="Markdown")
 
 
@@ -272,13 +307,18 @@ async def sell_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
     iid, idx = int(parts[1]), int(parts[2])
+    owner_id = int(parts[3]) if len(parts) > 3 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ Este no es tu menú de venta.", show_alert=True)
+        return
 
     kb = [
-        [InlineKeyboardButton("500 pts", callback_data=f"listsell_{iid}_{idx}_500"),
-         InlineKeyboardButton("1000 pts", callback_data=f"listsell_{iid}_{idx}_1000")],
-        [InlineKeyboardButton("2000 pts", callback_data=f"listsell_{iid}_{idx}_2000"),
-         InlineKeyboardButton("5000 pts", callback_data=f"listsell_{iid}_{idx}_5000")],
-        [InlineKeyboardButton("🔙 Cancelar", callback_data=f"idols_{idx}")],
+        [InlineKeyboardButton("500 pts", callback_data=f"listsell_{iid}_{idx}_500_{owner_id}"),
+         InlineKeyboardButton("1000 pts", callback_data=f"listsell_{iid}_{idx}_1000_{owner_id}")],
+        [InlineKeyboardButton("2000 pts", callback_data=f"listsell_{iid}_{idx}_2000_{owner_id}"),
+         InlineKeyboardButton("5000 pts", callback_data=f"listsell_{iid}_{idx}_5000_{owner_id}")],
+        [InlineKeyboardButton("🔙 Cancelar", callback_data=f"idols_{idx}_{owner_id}")],
     ]
 
     await q.edit_message_text("🏷️ *¿A qué precio quieres vender esta idol?*",
@@ -289,6 +329,11 @@ async def list_sell_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
     iid, idx, price = int(parts[1]), int(parts[2]), int(parts[3])
+    owner_id = int(parts[4]) if len(parts) > 4 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ Solo el dueño puede listar idols.", show_alert=True)
+        return
 
     r = list_idol_for_sale(q.from_user.id, iid, price)
 
@@ -298,16 +343,20 @@ async def list_sell_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         t = "❌ No se pudo listar."
 
     await q.edit_message_text(t,
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data="back_main")]]),
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{q.from_user.id}")]]),
         parse_mode="Markdown")
 
 
 # ─── MARKET ───
 async def market_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
-    await q.answer()
+    parts = q.data.split("_")
+    idx = int(parts[1]) if len(parts) > 1 else 0
+    owner_id = int(parts[2]) if len(parts) > 2 else 0
 
-    idx = int(q.data.split("_")[1]) if "_" in q.data else 0
+    if q.from_user.id != owner_id:
+        await q.answer("❌ Abre el mercado tú mismo para navegar.", show_alert=True)
+        return
 
     # Get all idols for sale
     all_idols = get_all_idols()
@@ -315,7 +364,7 @@ async def market_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not listings:
         await q.edit_message_text("🏪 *MERCADO*\nNo hay idols en venta.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data="back_main")]]),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{owner_id}")]]),
             parse_mode="Markdown")
         return
 
@@ -327,14 +376,14 @@ async def market_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     nav = []
     if idx > 0:
-        nav.append(InlineKeyboardButton("◀️", callback_data=f"market_{idx-1}"))
+        nav.append(InlineKeyboardButton("◀️", callback_data=f"market_{idx-1}_{owner_id}"))
     nav.append(InlineKeyboardButton(f"{idx+1}/{len(listings)}", callback_data="noop"))
     if idx < len(listings) - 1:
-        nav.append(InlineKeyboardButton("▶️", callback_data=f"market_{idx + 1}"))
+        nav.append(InlineKeyboardButton("▶️", callback_data=f"market_{idx + 1}_{owner_id}"))
 
     kb = [nav,
           [InlineKeyboardButton(f"💰 Comprar ({idol['sale_price']} pts)", callback_data=f"buy_{idol['id']}")],
-          [InlineKeyboardButton("🔙 Menú", callback_data="back_main")]]
+          [InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{owner_id}")]]
 
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
@@ -353,7 +402,7 @@ async def buy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.answer(f"❌ {r}", show_alert=True); return
 
     await q.edit_message_text(f"✅ *¡Compraste a {r['idol_name']}!*",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data="back_main")]]),
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{q.from_user.id}")]]),
         parse_mode="Markdown")
 
 
@@ -364,16 +413,21 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
     await q.answer()
 
     parts = q.data.split("_")
-    eid = int(parts[1]) if len(parts) > 1 else 0
-    idx = int(parts[2]) if len(parts) > 2 else 0
-    uid = q.from_user.id
+    eid = int(parts[2]) if len(parts) > 2 else 0
+    idx = int(parts[3]) if len(parts) > 3 else 0
+    owner_id = int(parts[4]) if len(parts) > 4 else 0
 
+    if q.from_user.id != owner_id:
+        await q.answer("❌ Este menú de selección no es tuyo.", show_alert=True)
+        return
+
+    uid = q.from_user.id
     all_idols = get_user_idols(uid)
 
     if not all_idols:
         await q.edit_message_text(
             "📉 *NO Tienes idols*\n¡Usa el Gacha primero!",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data="back_main")]]),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"back_main_{owner_id}")]]),
             parse_mode="Markdown"
         )
         return
@@ -402,10 +456,10 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
     # Botones para otras idols
     nav = []
     if idx > 0:
-        nav.append(InlineKeyboardButton("◀️", callback_data=f"sel_event_{eid}_{idx - 1}"))
+        nav.append(InlineKeyboardButton("◀️", callback_data=f"sel_event_{eid}_{idx - 1}_{owner_id}"))
     nav.append(InlineKeyboardButton(f"{idx+1}/{len(all_idols)}", callback_data="noop"))
     if idx < len(all_idols) - 1:
-        nav.append(InlineKeyboardButton("▶️", callback_data=f"sel_event_{eid}_{idx + 1}"))
+        nav.append(InlineKeyboardButton("▶️", callback_data=f"sel_event_{eid}_{idx + 1}_{owner_id}"))
 
     kb = [
         nav,
@@ -464,8 +518,13 @@ async def nsfw_info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler para el botón Stats NSFW en la tarjeta de idol"""
     q = update.callback_query
     parts = q.data.split("_")
-    # nsfw_info_ID_IDX -> parts = ["nsfw", "info", "ID", "IDX"]
+    # nsfw_info_ID_IDX_OWNERID -> parts = ["nsfw", "info", "ID", "IDX", "OWNERID"]
     iid, idx = int(parts[2]), int(parts[3])
+    owner_id = int(parts[4]) if len(parts) > 4 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No puedes ver las stats privadas de otro CEO.", show_alert=True)
+        return
 
     all_idols = get_all_idols()
     if str(iid) not in all_idols:
@@ -488,17 +547,17 @@ async def nsfw_info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💪 Total NSFW: `{total_nsfw}/500`")
 
     kb = [
-        [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}")],
+        [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")],
         [InlineKeyboardButton(f"🔞 Entrenar {NSFW_STAT_NAMES['sensitivity']}",
-                              callback_data=f"nsfw_tr_sensitivity_{iid}_{idx}")],
+                              callback_data=f"nsfw_tr_sensitivity_{iid}_{idx}_{owner_id}")],
         [InlineKeyboardButton(f"🔞 Entrenar {NSFW_STAT_NAMES['coqueteo']}",
-                              callback_data=f"nsfw_tr_coqueteo_{iid}_{idx}")],
+                              callback_data=f"nsfw_tr_coqueteo_{iid}_{idx}_{owner_id}")],
         [InlineKeyboardButton(f"🔞 Entrenar {NSFW_STAT_NAMES['firmeza_culo']}",
-                              callback_data=f"nsfw_tr_firmeza_culo_{iid}_{idx}")],
+                              callback_data=f"nsfw_tr_firmeza_culo_{iid}_{idx}_{owner_id}")],
         [InlineKeyboardButton(f"🔞 Entrenar {NSFW_STAT_NAMES['habilidades_cama']}",
-                              callback_data=f"nsfw_tr_habilidades_cama_{iid}_{idx}")],
+                              callback_data=f"nsfw_tr_habilidades_cama_{iid}_{idx}_{owner_id}")],
         [InlineKeyboardButton(f"🔞 Entrenar {NSFW_STAT_NAMES['kinky']}",
-                              callback_data=f"nsfw_tr_kinky_{iid}_{idx}")],
+                              callback_data=f"nsfw_tr_kinky_{iid}_{idx}_{owner_id}")],
     ]
 
     await q.edit_message_text(
@@ -513,11 +572,16 @@ async def nsfw_train_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """Entrena un stat NSFW específico"""
     q = update.callback_query
     parts = q.data.split("_")
-    # nsfw_tr_{stat_name}_{iid}_{idx}
+    # nsfw_tr_{stat_name}_{iid}_{idx}_{owner_id}
     # Como el nombre del stat puede tener guiones bajos, contamos desde el final
-    idx = int(parts[-1])
-    iid = int(parts[-2])
-    stat_type = "_".join(parts[2:-2])
+    owner_id = int(parts[-1])
+    idx = int(parts[-2])
+    iid = int(parts[-3])
+    stat_type = "_".join(parts[2:-3])
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ Este entrenamiento no es tuyo.", show_alert=True)
+        return
 
     r = train_nsfw(q.from_user.id, iid, stat_type)
 
@@ -533,7 +597,7 @@ async def nsfw_train_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await q.edit_message_text(
         f"🔞 *ENTRENAMIENTO NSFW de {r['idol_name']}*\n━━━━━━━━━━━━━━━━━━\n"
         f"{r['emoji']} {r['stat']} subió `+{r['boost']}` → `{r['new_val']}/100`",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}")]]),
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]),
         parse_mode="Markdown"
     )
 
@@ -584,10 +648,10 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     nav = []
     if idx > 0:
-        nav.append(InlineKeyboardButton("◀️", callback_data=f"sel_event_{eid}_{idx - 1}"))
+        nav.append(InlineKeyboardButton("◀️", callback_data=f"sel_event_{eid}_{idx - 1}_{uid}"))
     nav.append(InlineKeyboardButton(f"{idx+1}/{len(all_idols)}", callback_data="noop"))
     if idx < len(all_idols) - 1:
-        nav.append(InlineKeyboardButton("▶️", callback_data=f"sel_event_{eid}_{idx + 1}"))
+        nav.append(InlineKeyboardButton("▶️", callback_data=f"sel_event_{eid}_{idx + 1}_{uid}"))
 
     kb = [
         nav,
@@ -617,7 +681,7 @@ async def help_points_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         "━━━━━━━━━━━━━━━━━━"
     )
 
-    kb = [[InlineKeyboardButton("🔙 Volver", callback_data="back_main")]]
+    kb = [[InlineKeyboardButton("🔙 Volver", callback_data=f"back_main_{q.from_user.id}")]]
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
 
@@ -646,7 +710,7 @@ async def help_game_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "━━━━━━━━━━━━━━━━━━"
     )
     
-    kb = [[InlineKeyboardButton("🔙 Volver", callback_data="back_main")]]
+    kb = [[InlineKeyboardButton("🔙 Volver", callback_data=f"back_main_{q.from_user.id}")]]
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
 # ─── NOOP (for page indicators) ───

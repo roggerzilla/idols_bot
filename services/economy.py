@@ -333,13 +333,31 @@ def gacha_pull(user_id: int) -> dict | str:
             chosen_rarity = rarity
             break
 
-    # Get templates by rarity (simplified - should use template database)
+    # Get real idol templates
     template_names = {
-        'C': [("Rookie_A", "Group A"), ("Rookie_B", "Group B")],
-        'B': [("Rising_A", "Group C"), ("Rising_B", "Group D")],
-        'A': [("Elite_A", "Group E"), ("Elite_B", "Group F")],
-        'S': [("Superstar_A", "Group G"), ("Superstar_B", "Group H")],
-        'SS': [("Goddess_A", "Group I"), ("Goddess_B", "Group J")]
+        'C': [
+            ("Haewon", "NMIXX"), ("Bae", "NMIXX"), ("Jiwoo", "NMIXX"), ("Kyujin", "NMIXX"),
+            ("Mashiro", "Kep1er"), ("Chaehyun", "Kep1er"), ("Hikaru", "Kep1er"), ("Huening_Bahiyyih", "Kep1er"),
+            ("Isa", "STAYC"), ("Seeun", "STAYC"), ("Sumin", "STAYC"), ("J", "STAYC"),
+            ("Belle", "KISS OF LIFE"), ("Julie", "KISS OF LIFE"), ("Haneul", "KISS OF LIFE"),
+            ("Iroha", "ILLIT"), ("Wonhee", "ILLIT"), ("Minju", "ILLIT"), ("Moka", "ILLIT"), ("Yunah", "ILLIT")
+        ],
+        'B': [
+            ("Minji", "NewJeans"), ("Danielle", "NewJeans"), ("Liz", "IVE"), ("Eunchae", "LE SSERAFIM"),
+            ("Xiaoting", "Kep1er"), ("Hyein", "NewJeans"), ("Lily", "NMIXX"), ("Sieun", "STAYC"), ("Yoon", "STAYC")
+        ],
+        'A': [
+            ("Ryujin", "ITZY"), ("Rei", "IVE"), ("Yeji", "ITZY"), ("Nayeon", "TWICE"),
+            ("Sana", "TWICE"), ("Natty", "KISS OF LIFE"), ("Yunjin", "LE SSERAFIM")
+        ],
+        'S': [
+            ("Hanni", "NewJeans"), ("Winter", "aespa"), ("Sakura", "LE SSERAFIM"), ("Yujin", "IVE"),
+            ("Kazuha", "LE SSERAFIM"), ("Mina", "TWICE"), ("Jihyo", "TWICE"), ("Haerin", "NewJeans")
+        ],
+        'SS': [
+            ("Karina", "aespa"), ("Wonyoung", "IVE"), ("Yuna", "ITZY"), ("Chaewon", "LE SSERAFIM"),
+            ("Lisa", "BLACKPINK"), ("Jennie", "BLACKPINK"), ("Momo", "TWICE"), ("Sullyoon", "NMIXX")
+        ]
     }
 
     name, group = random.choice(template_names[chosen_rarity])
