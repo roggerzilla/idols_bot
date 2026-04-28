@@ -41,21 +41,10 @@ async def post_init(application):
 
 
 def main():
-    import os
-    # Solo usar proxy si estamos en PythonAnywhere
-    proxy_url = "http://proxy.server:3128"
-    is_pa = os.path.exists("/home/monkey98")
-
     builder = ApplicationBuilder().token(TELEGRAM_TOKEN)
     
-    # Usar HTTPXRequest para mayor estabilidad en Python 3.13
-    request = HTTPXRequest(connection_pool_size=8)
-    builder.request(request)
-
-    if is_pa:
-        builder.proxy(proxy_url).get_updates_proxy(proxy_url)
-        print("🌐 Usando proxy de PythonAnywhere")
-
+    # PythonAnywhere automatically applies its proxy to httpx via environment variables.
+    # Manual proxy configuration often causes ExtBot initialization failures in PTB v20+.
     application = (
         builder
         .connect_timeout(30.0)
