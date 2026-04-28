@@ -510,10 +510,11 @@ async def nsfw_train_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     """Entrena un stat NSFW específico"""
     q = update.callback_query
     parts = q.data.split("_")
-    # nsfw_tr_{stat}_{idol_idx}
-    stat_type = parts[2]
-    iid = int(parts[3])
-    idx = int(parts[4])
+    # nsfw_tr_{stat_name}_{iid}_{idx}
+    # Como el nombre del stat puede tener guiones bajos, contamos desde el final
+    idx = int(parts[-1])
+    iid = int(parts[-2])
+    stat_type = "_".join(parts[2:-2])
 
     r = train_nsfw(q.from_user.id, iid, stat_type)
 
@@ -616,6 +617,25 @@ async def help_points_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     kb = [[InlineKeyboardButton("🔙 Volver", callback_data="back_main")]]
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
+
+async def help_game_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra la guía completa del juego"""
+    q = update.callback_query
+    await q.answer()
+    
+    text = (
+        "📖 *GUÍA COMPLETA DEL JUEGO*\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "🎤 *Stats Normales:* Vocal, Dance y Rap. Sirven para que tus *Comebacks* sean exitosos y ganes más puntos.\n\n"
+        "🔞 *Stats NSFW:* Sensibilidad, Coqueteo, etc. Aumentan drásticamente el dinero que ganas en los *Eventos Globales* (contratos).\n\n"
+        "🔋 *Energía:* Se gasta al entrenar y hacer comebacks. Recupérala con el botón 'Descansar'.\n\n"
+        "❤️ *Moral:* Si la moral es baja, tus comebacks fallarán. Súbela con 'Saludar' o participando en eventos de Caridad.\n\n"
+        "✈️ *Tours:* Generan puntos cada hora mientras la idol no está. Ideal para cuando no vas a jugar un buen rato.\n"
+        "━━━━━━━━━━━━━━━━━━"
+    )
+    
+    kb = [[InlineKeyboardButton("🔙 Volver", callback_data="back_main")]]
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
 # ─── NOOP (for page indicators) ───
 async def noop_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):

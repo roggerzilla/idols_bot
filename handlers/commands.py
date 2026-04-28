@@ -39,7 +39,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             add_group(chat.id, title=chat.title or "")
 
     kb = [
-        [InlineKeyboardButton("👤 Perfil", callback_data="profile")],
+        [InlineKeyboardButton("👤 Perfil", callback_data="profile"),
+         InlineKeyboardButton("📖 Ayuda", callback_data="help_game")],
         [InlineKeyboardButton("👯 Mis Idols", callback_data="idols_0"),
          InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data="gacha")],
         [InlineKeyboardButton("🏪 Mercado", callback_data="market_0"),
@@ -80,9 +81,21 @@ async def admin_evento(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    t = ("📖 *COMANDOS*\n/startidols — Menú principal\n/ayuda — Ayuda\n"
-         "👑 *ADMIN:*\n/evento — Evento aleatorio\n/evento nsfw — Forzar NSFW\n"
-         "/evento charity — Forzar caridad")
+    t = (
+        "📖 *GUÍA DEL CEO DE IDOLS*\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "🎰 *Gacha:* Consigue nuevas idols por 500 pts.\n"
+        "📀 *Comebacks:* Lanza álbumes. Dependen de Vocal, Dance y Rap.\n"
+        "💪 *Entrenar:* Mejora las stats de tu idol por 200 pts.\n"
+        "🔞 *Stats NSFW:* Influyen en los premios de Eventos Globales.\n"
+        "✈️ *World Tour:* Envía a tu idol de gira (12h) para ganar puntos pasivos.\n"
+        "🏪 *Mercado:* Compra y vende idols con otros jugadores.\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "👑 *COMANDOS DE ADMIN:*\n"
+        "/evento — Lanza evento aleatorio\n"
+        "/evento nsfw — Fuerza evento NSFW\n"
+        "/evento charity — Fuerza evento de caridad"
+    )
     await update.message.reply_text(t, parse_mode="Markdown")
 
 
@@ -118,7 +131,8 @@ async def back_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = get_user(q.from_user.id)
 
     kb = [
-        [InlineKeyboardButton("👤 Perfil", callback_data="profile")],
+        [InlineKeyboardButton("👤 Perfil", callback_data="profile"),
+         InlineKeyboardButton("📖 Ayuda", callback_data="help_game")],
         [InlineKeyboardButton("👯 Mis Idols", callback_data="idols_0"),
          InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data="gacha")],
         [InlineKeyboardButton("🏪 Mercado", callback_data="market_0"),

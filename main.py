@@ -11,7 +11,8 @@ from handlers.actions import (
     gacha_handler, idols_handler, comeback_handler, train_handler,
     greet_handler, rest_handler, tour_handler, sell_handler, list_sell_handler,
     market_handler, buy_handler, claim_handler, noop_handler, help_points_handler,
-    select_idol_for_event, use_idol_for_event, nsfw_info_handler, nsfw_train_handler
+    select_idol_for_event, use_idol_for_event, nsfw_info_handler, nsfw_train_handler,
+    help_game_handler
 )
 from services.scheduler_tasks import process_all_maintenances
 from services.events import create_and_broadcast_event
@@ -86,6 +87,7 @@ def main():
     application.add_handler(CallbackQueryHandler(nsfw_info_handler, pattern=r"^nsfw_info_\d+_\d+$"))
     application.add_handler(CallbackQueryHandler(nsfw_train_handler, pattern=r"^nsfw_tr_"))
     application.add_handler(CallbackQueryHandler(help_points_handler, pattern="^help_pts$"))
+    application.add_handler(CallbackQueryHandler(help_game_handler, pattern="^help_game$"))
     application.add_handler(CallbackQueryHandler(noop_handler, pattern="^noop$"))
 
     print("🤖 Bot running: Gacha, Market, Events, Admin commands active")

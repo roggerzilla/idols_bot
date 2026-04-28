@@ -481,19 +481,21 @@ def calculate_event_reward(user_id: int, idol_id: int) -> dict | None:
     if idol["user_id"] != user_id:
         return None
 
-    # Stats básicos + NSFW
+    # Stats básicos y NSFW
     basic_stats = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
     nsfw_stats = (idol.get("sensitivity", 50) + idol.get("coqueteo", 50) +
                   idol.get("firmeza_culo", 50) + idol.get("habilidades_cama", 50) +
                   idol.get("kinky", 50))
-    total_stats = basic_stats + nsfw_stats
+    
+    # En eventos NSFW, las stats NSFW pesan 3 veces más que las básicas
+    weighted_total = (basic_stats * 0.5) + (nsfw_stats * 1.5)
 
     # Base points según rareza
     rarity_mult = RARITY_CONFIG[idol["rarity"]]["mult"]
     base_points = int(1000 * rarity_mult)
 
-    # Bonus por stats (cada 100 stats da +10% de bonus)
-    stat_bonus = 1 + (total_stats / 1000)
+    # Bonus por stats (basado en el total pesado)
+    stat_bonus = 1 + (weighted_total / 500)
 
     reward = int(base_points * stat_bonus)
 
@@ -502,7 +504,7 @@ def calculate_event_reward(user_id: int, idol_id: int) -> dict | None:
         "base_points": base_points,
         "rarity_mult": rarity_mult,
         "stat_bonus": round(stat_bonus, 2),
-        "total_stats": total_stats,
+        "total_stats": int(weighted_total),
         "basic_stats": basic_stats,
         "nsfw_stats": nsfw_stats,
         "idol_name": idol["name"],
