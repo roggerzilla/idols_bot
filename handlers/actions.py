@@ -12,6 +12,8 @@ from config import RARITY_CONFIG
 
 # ─── GACHA ───
 async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    import asyncio
+    import random
     q = update.callback_query
     await q.answer()
     uid = q.from_user.id
@@ -20,16 +22,43 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if u.points < 500:
             await q.answer("❌ Necesitas 500 pts.", show_alert=True)
             return
+        
         u.points -= 500
+        await session.commit() # Commit point deduction before animation
+
+        # Animation sequence
+        frames = ["🎰 ✨", "🎰 🌟", "🎰 💎", "🎰 🌈"]
+        for frame in frames:
+            await q.edit_message_text(f"*GIRANDO RULETA...*\n\n{frame}", parse_mode="Markdown")
+            await asyncio.sleep(0.3)
+
         tmpl = await gacha_pull(session, uid)
-        rarity_stars = {"C": "⭐", "B": "⭐⭐", "A": "⭐⭐⭐", "S": "🌟🌟🌟🌟", "SS": "💎💎💎💎💎"}
+        
+        # Premium visuals based on rarity
+        rarity_themes = {
+            "C":  {"emoji": "⭐",       "border": "⚪", "title": "¡NUEVA ROOKIE!"},
+            "B":  {"emoji": "⭐⭐",      "border": "🟢", "title": "¡RISING STAR!"},
+            "A":  {"emoji": "⭐⭐⭐",     "border": "🔵", "title": "¡TALENTO ÉLITE!"},
+            "S":  {"emoji": "🌟🌟🌟🌟",    "border": "🟣", "title": "¡SUPERSTAR!"},
+            "SS": {"emoji": "💎💎💎💎💎", "border": "👑", "title": "¡DIOSA LEGENDARIA!"},
+        }
+        theme = rarity_themes.get(tmpl.rarity, rarity_themes["C"])
+        
+        reveal_text = (
+            f"{theme['border']} *{theme['title']}* {theme['border']}\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"✨ *{tmpl.name.upper()}*\n"
+            f"🏢 `{tmpl.group_name}`\n"
+            f"📊 Rareza: {theme['emoji']} `[{tmpl.rarity}]`\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🎤 `{tmpl.base_vocal}` | 💃 `{tmpl.base_dance}` | 🎧 `{tmpl.base_rap}`\n\n"
+            f"💰 Puntos restantes: `{u.points}`"
+        )
+
         await q.edit_message_text(
-            f"🎊 *¡NUEVA IDOL!*\n\n"
-            f"*{tmpl.name}* — {tmpl.group_name}\n"
-            f"Rareza: {rarity_stars.get(tmpl.rarity, '⭐')} `[{tmpl.rarity}]`\n"
-            f"🎤 `{tmpl.base_vocal}` | 💃 `{tmpl.base_dance}` | 🎧 `{tmpl.base_rap}`",
+            reveal_text,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🎰 Otro Gacha", callback_data="gacha")],
+                [InlineKeyboardButton("🎰 Otro Gacha (500 pts)", callback_data="gacha")],
                 [InlineKeyboardButton("🔙 Menú", callback_data="back_main")]
             ]), parse_mode="Markdown")
 
