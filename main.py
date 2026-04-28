@@ -32,16 +32,16 @@ async def post_init(application):
 
 def main():
     proxy_url = "http://proxy.server:3128"
-    request_config = HTTPXRequest(
-        connect_timeout=30.0, read_timeout=30.0,
-        write_timeout=30.0, pool_timeout=30.0
-    )
+    
     application = (
         ApplicationBuilder()
         .token(TELEGRAM_TOKEN)
-        .request(request_config)
         .proxy(proxy_url)
         .get_updates_proxy(proxy_url)
+        .connect_timeout(30.0)
+        .read_timeout(30.0)
+        .write_timeout(30.0)
+        .pool_timeout(30.0)
         .post_init(post_init)
         .build()
     )
