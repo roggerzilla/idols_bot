@@ -1,68 +1,83 @@
 import random
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from sqlalchemy import select
-from models import User, UserIdol
+from models import User, UserIdol, IdolTemplate, GlobalEvent, BotGroup
+from database import AsyncSessionLocal
+from config import NSFW_EVENTS, CHARITY_EVENTS, RARITY_CONFIG
 
-async def trigger_random_global_event(context):
-    """Triggered randomly by the scheduler"""
+async def create_and_broadcast_event(application, force_type=None):
+    """
+    Creates a global event and sends it to ALL registered groups.
+    Called by scheduler automatically or by admin /evento command.
+    force_type: "nsfw" or "charity" (None = random)
+    """
     async with AsyncSessionLocal() as session:
-        points = random.randint(5000, 15000)
-        new_event = GlobalEvent(event_type="NSFW_SPONSOR", points=points)
+        # Decide event type
+        if force_type == "nsfw":
+            is_charity = False
+        elif force_type == "charity":
+            is_charity = True
+        else:
+            is_charity = random.random() < 0.25  # 25% charity, 75% nsfw
+        
+        if is_charity:
+            event_data = random.choice(CHARITY_EVENTS)
+            points = random.randint(1000, 3000)  # Cost to participate
+            event_type = "CHARITY"
+        else:
+            event_data = random.choice(NSFW_EVENTS)
+            points = random.randint(3000, 15000)  # Reward
+            event_type = "NSFW_SPONSOR"
+        
+        new_event = GlobalEvent(
+            event_type=event_type,
+            description=event_data["desc"],
+            points=points
+        )
         session.add(new_event)
         await session.commit()
+        await session.refresh(new_event)
         
-        # In a real bot, you'd send this to a main channel or all users
-        # For now, let's assume we broadcast a message with a 'Claim' button
-        text = (
-            "🔥 *EVENTO GLOBAL LIMITADO*\n\n"
-            "Un patrocinador VIP busca una compañía discreta para esta noche. "
-            "¡La primera agencia en aceptar se lleva el contrato!\n\n"
-            f"💰 *Recompensa:* `{points} pts`"
-        )
-        keyboard = [[InlineKeyboardButton("🤝 ¡ACEPTAR CONTRATO!", callback_data=f"claim_global_{new_event.id}")]]
+        # Build message
+        if is_charity:
+            text = (
+                f"💖 *EVENTO GLOBAL: {event_data['title']}*\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"{event_data['desc']}\n\n"
+                f"💸 *Costo:* `{points} pts`\n"
+                f"❤️ *Beneficio:* Moral de tu idol al MÁXIMO\n\n"
+                f"⚡ _¡El primero en aceptar se lo lleva!_"
+            )
+        else:
+            text = (
+                f"🔥 *EVENTO GLOBAL: {event_data['title']}*\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"{event_data['desc']}\n\n"
+                f"💰 *Recompensa:* `{points} pts`\n"
+                f"📉 *Riesgo:* La moral de tu idol bajará\n\n"
+                f"⚡ _¡El primero en reclamar se lo lleva!_"
+            )
         
-        # We need a way to send to users. This is just a conceptual placeholder
-        # In main.py we will register this.
-        return text, keyboard
-
-async def trigger_sponsor_event(session, user_id):
-    """Event: NSFW Sponsor proposal"""
-    result = await session.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one()
-    
-    # Randomize offer
-    points_offered = random.randint(2000, 8000)
-    
-    event_text = (
-        "🔞 *PROPUESTA DE PATROCINADOR*\n\n"
-        "Un CEO de una marca de lujo ha contactado con tu agencia. "
-        "Está dispuesto a financiar tu próximo comeback con una cifra astronómica... "
-        "a cambio de una 'noche privada' con una de tus idols.\n\n"
-        f"💰 *Oferta:* `{points_offered} pts`\n"
-        "⚠️ *Consecuencia:* La moral de la idol bajará drásticamente."
-    )
-    
-    return {
-        "text": event_text,
-        "points": points_offered,
-        "moral_penalty": random.randint(30, 60)
-    }
-
-async def trigger_fan_scandal(session, user_id):
-    """Event: Idol scandal (NSFW/Suggestive context)"""
-    scandals = [
-        "Se han filtrado fotos 'privadas' de tu idol en un club nocturno.",
-        "Un paparazzi captó a tu idol saliendo de un hotel con un actor famoso.",
-        "Tu idol publicó por error una foto sugerente en sus redes sociales."
-    ]
-    
-    event_text = (
-        "🔥 *ESCÁNDALO EN REDES*\n\n"
-        f"{random.choice(scandals)}\n\n"
-        "📉 El fandom está dividido. Pierdes puntos de reputación y moral."
-    )
-    
-    return {
-        "text": event_text,
-        "moral_penalty": random.randint(15, 25),
-        "point_loss": random.randint(500, 1500)
-    }
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🤝 ¡RECLAMAR AHORA!", callback_data=f"claim_{new_event.id}")]
+        ])
+        
+        # Send to all registered groups
+        groups = (await session.execute(select(BotGroup))).scalars().all()
+        
+        for group in groups:
+            try:
+                msg = await application.bot.send_message(
+                    chat_id=group.chat_id,
+                    text=text,
+                    reply_markup=keyboard,
+                    parse_mode="Markdown"
+                )
+                # Save message info so we can edit it later
+                new_event.chat_id = group.chat_id
+                new_event.message_id = msg.message_id
+                await session.commit()
+            except Exception as e:
+                print(f"Error sending event to group {group.chat_id}: {e}")
+        
+        return new_event.id

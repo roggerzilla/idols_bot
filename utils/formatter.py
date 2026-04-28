@@ -1,30 +1,50 @@
 import datetime
 
-def format_idol_card(idol, template):
+def format_idol_card(idol, template, idx=None, total=None):
+    """Compact idol card for the flat navigation UI"""
     status_emoji = {
-        "ACTIVE": "✨",
+        "ACTIVE": "✅",
         "HIATUS": "😴",
         "WORLD_TOUR": "✈️"
     }.get(idol.status.name, "❓")
     
+    # Morale bar
+    morale_bars = "█" * (idol.morale // 10) + "░" * (10 - idol.morale // 10)
+    energy_bars = "█" * (idol.energy // 10) + "░" * (10 - idol.energy // 10)
+    
+    header = ""
+    if idx is not None and total is not None:
+        header = f"📋 Idol {idx}/{total}\n"
+    
+    sale_text = ""
+    if idol.for_sale:
+        sale_text = f"\n🏷️ *EN VENTA:* `{idol.sale_price} pts`"
+    
     return (
-        f"🌟 *{template.name}* ({template.group_name})\n"
-        f"━━━━━━━━━━━━━━━\n"
-        f"📊 Rarity: `{template.rarity}` | {status_emoji} {idol.status.value.title()}\n"
-        f"🎤 Vocal: `{idol.vocal}` | 💃 Dance: `{idol.dance}` | 🎧 Rap: `{idol.rap}`\n"
-        f"❤️ Morale: `{idol.morale}/100` (Influye en el éxito del Comeback)\n"
-        f"⚡ Energy: `{idol.energy}/100` (Se agota al trabajar/entrenar)\n"
-        f"📜 Contract: `{idol.contract_expiry.strftime('%Y-%m-%d')}`\n"
-        f"━━━━━━━━━━━━━━━"
+        f"{header}"
+        f"🌟 *{template.name}* ({template.group_name}) [{template.rarity}]\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"{status_emoji} Estado: {idol.status.value.title()}\n"
+        f"🎤 `{idol.vocal}` | 💃 `{idol.dance}` | 🎧 `{idol.rap}`\n"
+        f"❤️ Moral: [{morale_bars}] `{idol.morale}`\n"
+        f"⚡ Energía: [{energy_bars}] `{idol.energy}`"
+        f"{sale_text}"
     )
 
 def format_user_profile(user, idols_count):
     return (
-        f"👤 *Agencia de {user.username}*\n"
-        f"━━━━━━━━━━━━━━━\n"
-        f"💰 Balance: `{user.points} pts`\n"
-        f"🏆 Wins: `{user.wins}`\n"
-        f"👯 Idols en Staff: `{idols_count}`\n"
-        f"🚩 Fandom: `{user.fandom.name if user.fandom else 'Ninguno'}`\n"
-        f"━━━━━━━━━━━━━━━"
+        f"👤 *CEO: {user.username}*\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"💰 Puntos: `{user.points}`\n"
+        f"🏆 Victorias: `{user.wins}`\n"
+        f"👯 Idols: `{idols_count}`\n"
+        f"━━━━━━━━━━━━━━━━━━"
+    )
+
+def format_market_listing(idol, template, owner_name):
+    return (
+        f"🏷️ *{template.name}* ({template.group_name}) [{template.rarity}]\n"
+        f"🎤 `{idol.vocal}` | 💃 `{idol.dance}` | 🎧 `{idol.rap}`\n"
+        f"💰 Precio: `{idol.sale_price} pts`\n"
+        f"👤 Vendedor: {owner_name}"
     )

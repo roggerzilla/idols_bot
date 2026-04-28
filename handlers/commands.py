@@ -1,12 +1,15 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from database import AsyncSessionLocal
-from models import User, UserIdol
+from models import User, UserIdol, IdolTemplate, BotGroup
 from sqlalchemy import select
 from utils.formatter import format_user_profile
+from config import ADMIN_IDS
+from services.events import create_and_broadcast_event
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_tg = update.effective_user
+    chat = update.effective_chat
     async with AsyncSessionLocal() as session:
         result = await session.execute(select(User).where(User.id == user_tg.id))
         user = result.scalar_one_or_none()
@@ -14,47 +17,56 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user = User(id=user_tg.id, username=user_tg.username or user_tg.first_name)
             session.add(user)
             await session.commit()
-        
-        keyboard = [
-            [InlineKeyboardButton("👤 Mi Perfil", callback_data="profile"), InlineKeyboardButton("🚩 Fandoms", callback_data="fandoms_menu")],
-            [InlineKeyboardButton("👯 Mis Idols", callback_data="my_idols")],
-            [InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data="gacha_pull")],
+        if chat.type in ("group", "supergroup"):
+            existing = await session.execute(select(BotGroup).where(BotGroup.chat_id == chat.id))
+            if not existing.scalar_one_or_none():
+                session.add(BotGroup(chat_id=chat.id, title=chat.title or ""))
+                await session.commit()
+        kb = [
+            [InlineKeyboardButton("👤 Perfil", callback_data="profile")],
+            [InlineKeyboardButton("👯 Mis Idols", callback_data="idols_0")],
+            [InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data="gacha")],
+            [InlineKeyboardButton("🏪 Mercado", callback_data="market_0")],
         ]
-        await update.message.reply_text(f"🏠 *Panel de CEO - {user.username}*", 
-            reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+        await update.message.reply_text(
+            f"🏠 *Panel de CEO — {user.username}*\n💰 Puntos: `{user.points}`",
+            reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
-async def fandoms_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    keyboard = [
-        [InlineKeyboardButton("🍭 ONCE", callback_data="join_ONCE"), InlineKeyboardButton("🦋 FEARNOT", callback_data="join_FEARNOT")],
-        [InlineKeyboardButton("✨ DIVE", callback_data="join_DIVE")],
-        [InlineKeyboardButton("🔙 Volver", callback_data="back_main")]
-    ]
-    await query.edit_message_text("🚩 *CENTRAL DE FANDOMS*\nÚnete a uno para ganar reputación y bonos globales.", 
-        reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+async def admin_evento(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    if ADMIN_IDS and uid not in ADMIN_IDS:
+        await update.message.reply_text("❌ Sin permisos.")
+        return
+    ft = context.args[0].lower() if context.args else None
+    eid = await create_and_broadcast_event(context.application, force_type=ft)
+    await update.message.reply_text(f"✅ Evento #{eid} lanzado." if eid else "❌ Error.")
 
-async def join_fandom_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    f_name = query.data.split("_")[1]
-    await query.edit_message_text(f"✅ ¡Bienvenido a la familia *{f_name}*!\nAhora tus idols representarán a este fandom.", 
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data="back_main")]]), parse_mode="Markdown")
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    t = ("📖 *COMANDOS*\n/start — Menú\n/ayuda — Ayuda\n"
+         "/vender [precio] — Vender idol actual\n/quitarventa — Quitar del mercado\n"
+         "👑 *ADMIN:*\n/evento — Evento NSFW\n/evento charity — Evento caridad")
+    await update.message.reply_text(t, parse_mode="Markdown")
 
 async def profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
+    q = update.callback_query
+    await q.answer()
     async with AsyncSessionLocal() as session:
-        user = (await session.execute(select(User).where(User.id == query.from_user.id))).scalar_one()
-        idols_result = await session.execute(select(UserIdol).where(UserIdol.user_id == user.id))
-        idols_count = len(idols_result.scalars().all())
-        await query.edit_message_text(format_user_profile(user, idols_count), 
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data="back_main")]]), parse_mode="Markdown")
+        u = (await session.execute(select(User).where(User.id == q.from_user.id))).scalar_one()
+        ic = len((await session.execute(select(UserIdol).where(UserIdol.user_id == u.id))).scalars().all())
+        await q.edit_message_text(format_user_profile(u, ic),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data="back_main")]]),
+            parse_mode="Markdown")
 
 async def back_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    keyboard = [
-        [InlineKeyboardButton("👤 Mi Perfil", callback_data="profile"), InlineKeyboardButton("🚩 Fandoms", callback_data="fandoms_menu")],
-        [InlineKeyboardButton("👯 Mis Idols", callback_data="my_idols")],
-        [InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data="gacha_pull")],
-    ]
-    await query.edit_message_text("🏠 *Menú Principal*", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    q = update.callback_query
+    await q.answer()
+    async with AsyncSessionLocal() as session:
+        u = (await session.execute(select(User).where(User.id == q.from_user.id))).scalar_one()
+        kb = [
+            [InlineKeyboardButton("👤 Perfil", callback_data="profile")],
+            [InlineKeyboardButton("👯 Mis Idols", callback_data="idols_0")],
+            [InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data="gacha")],
+            [InlineKeyboardButton("🏪 Mercado", callback_data="market_0")],
+        ]
+        await q.edit_message_text(f"🏠 *Panel de CEO*\n💰 Puntos: `{u.points}`",
+            reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
