@@ -294,6 +294,49 @@ def get_group(chat_id: int) -> Optional[dict]:
     return groups.get(chat_id)
 
 
+# ─── EVENT REWARD CALCULATION ──────────────────────────────────
+
+def calculate_event_reward(user_id: int, idol_id: int) -> dict | None:
+    """Calcula recompensa basada en rareza + stats totales (básicos + NSFW)"""
+    idols = get_all_idols()
+    if idol_id not in idols:
+        return None
+
+    idol = idols[idol_id]
+    if idol["user_id"] != user_id:
+        return None
+
+    from config import RARITY_CONFIG
+
+    # Stats básicos + NSFW
+    basic_stats = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
+    nsfw_stats = (idol.get("sensitivity", 50) + idol.get("coqueteo", 50) +
+                  idol.get("firmeza_culo", 50) +
+                  idol.get("habilidades_cama", 50) + idol.get("kinky", 50))
+    total_stats = basic_stats + nsfw_stats
+
+    # Base points según rareza
+    rarity_mult = RARITY_CONFIG[idol["rarity"]]["mult"]
+    base_points = int(1000 * rarity_mult)
+
+    # Bonus por stats (cada 100 stats da +10% de bonus)
+    stat_bonus = 1 + (total_stats / 1000)
+
+    reward = int(base_points * stat_bonus)
+
+    return {
+        "reward": reward,
+        "base_points": base_points,
+        "rarity_mult": rarity_mult,
+        "stat_bonus": round(stat_bonus, 2),
+        "total_stats": total_stats,
+        "basic_stats": basic_stats,
+        "nsfw_stats": nsfw_stats,
+        "idol_name": idol["name"],
+        "rarity": idol["rarity"]
+    }
+
+
 # ─── MIGRATION FROM SQLITE ─────────────────────────────────────
 
 def migrate_from_sqlite(sqlite_db_path: str = "idols_bot.db") -> bool:
