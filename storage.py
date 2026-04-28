@@ -81,10 +81,12 @@ def process_maintenance(user_id: int) -> dict:
 def create_user(user_id: int, username: str = None) -> dict:
     """Crea un nuevo usuario."""
     users = get_all_users()
+
+    # Verificar si ya existe
     if user_id in users:
         return users[user_id]
 
-    users[user_id] = {
+    new_user = {
         "id": user_id,
         "username": username or f"user_{user_id}",
         "points": 1000,
@@ -92,8 +94,13 @@ def create_user(user_id: int, username: str = None) -> dict:
         "last_maintenance_check": datetime.utcnow().isoformat(),
         "idols": []
     }
+
+    users[user_id] = new_user
     save_json(USERS_FILE, users)
-    return users[user_id]
+
+    # Verificar que se guardó correctamente
+    saved_user = get_user(user_id)
+    return saved_user if saved_user else new_user
 
 
 def update_user(user_id: int, **kwargs) -> Optional[dict]:

@@ -20,6 +20,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         create_user(user_tg.id, username=user_tg.username or user_tg.first_name)
         user = get_user(user_tg.id)
 
+    # Fallback por si user sigue siendo None
+    if not user:
+        user = {
+            "id": user_tg.id,
+            "username": user_tg.username or user_tg.first_name or "Unknown",
+            "points": 1000,
+            "wins": 0,
+            "last_maintenance_check": datetime.utcnow().isoformat(),
+            "idols": []
+        }
+
     # Registrar grupo si es nuevo
     if chat.type in ("group", "supergroup"):
         groups = get_all_groups()
