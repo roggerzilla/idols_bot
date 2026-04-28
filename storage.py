@@ -50,6 +50,34 @@ def get_user(user_id: int) -> Optional[dict]:
     return users.get(user_id)
 
 
+def process_maintenance(user_id: int) -> dict:
+    """Dedica fees de mantenimiento; pone idols en hiatus si broke"""
+    from config import MAINTENANCE_COST_BASE
+
+    user = get_user(user_id)
+    if not user:
+        return {"success": False, "error": "user_not_found"}
+
+    # Obtener todas las idols del usuario
+    idols = get_user_idols(user_id)
+    total_fee = len(idols) * MAINTENANCE_COST_BASE
+
+    if user["points"] >= total_fee:
+        deduct_points(user_id, total_fee)
+        return {"success": True, "fee_paid": total_fee}
+    else:
+        # Poner todas las idols en hiatus
+        for idol in idols:
+            update_idol(idol["id"], status="hiatus")
+
+        # Passive energy recovery (+10 per day, capped at 100)
+        for idol in idols:
+            idol["energy"] = min(100, idol["energy"] + 10)
+            update_idol(idol["id"], **{"energy": idol["energy"]})
+
+        return {"success": True, "fee_paid": total_fee, "hiatus_applied": True}
+
+
 def create_user(user_id: int, username: str = None) -> dict:
     """Crea un nuevo usuario."""
     users = get_all_users()
