@@ -65,7 +65,8 @@ def migrate():
 
             tmpl = templates.get(template_id)
             if tmpl:
-                name, group_name, rarity, base_vocal, base_dance, base_rap = tmpl
+                # tmpl tiene 7 valores: id, name, group_name, rarity, base_vocal, base_dance, base_rap
+                _, name, group_name, rarity, base_vocal, base_dance, base_rap = tmpl
             else:
                 name, group_name, rarity = "Unknown", "Unknown Group", "C"
 
