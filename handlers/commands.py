@@ -42,9 +42,9 @@ async def admin_evento(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Evento #{eid} lanzado." if eid else "❌ Error.")
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    t = ("📖 *COMANDOS*\n/start — Menú\n/ayuda — Ayuda\n"
-         "/vender [precio] — Vender idol actual\n/quitarventa — Quitar del mercado\n"
-         "👑 *ADMIN:*\n/evento — Evento NSFW\n/evento charity — Evento caridad")
+    t = ("📖 *COMANDOS*\n/startidols — Menú principal\n/ayuda — Ayuda\n"
+         "👑 *ADMIN:*\n/evento — Evento aleatorio\n/evento nsfw — Forzar NSFW\n"
+         "/evento charity — Forzar caridad")
     await update.message.reply_text(t, parse_mode="Markdown")
 
 async def profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):

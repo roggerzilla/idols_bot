@@ -47,7 +47,7 @@ def main():
     )
 
     # Commands
-    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("startidols", start))
     application.add_handler(CommandHandler("evento", admin_evento))
     application.add_handler(CommandHandler("ayuda", help_command))
 
