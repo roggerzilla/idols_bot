@@ -1,3 +1,7 @@
+"""
+Bot principal usando almacenamiento JSON.
+"""
+
 import logging
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 from telegram.request import HTTPXRequest
@@ -11,11 +15,12 @@ from handlers.actions import (
 )
 from services.scheduler_tasks import process_all_maintenances
 from services.events import create_and_broadcast_event
+from storage import init_storage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from database import init_db
 import random
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
 
 async def scheduled_random_event(application):
     """Random chance to trigger event (called every 30 min)"""
@@ -23,26 +28,29 @@ async def scheduled_random_event(application):
         await create_and_broadcast_event(application)
         print("🎲 Random global event triggered!")
 
+
 async def post_init(application):
-    await init_db()
+    """Inicializa el sistema JSON y scheduler."""
+    init_storage()
     scheduler = AsyncIOScheduler()
     scheduler.add_job(process_all_maintenances, 'interval', hours=24)
     scheduler.add_job(scheduled_random_event, 'interval', minutes=30, args=[application])
     scheduler.start()
-    print("🚀 Database & Scheduler initialized")
+    print("🚀 JSON Storage & Scheduler initialized")
+
 
 def main():
     import os
     # Solo usar proxy si estamos en PythonAnywhere
     proxy_url = "http://proxy.server:3128"
     is_pa = os.path.exists("/home/monkey98")
-    
+
     builder = ApplicationBuilder().token(TELEGRAM_TOKEN)
-    
+
     if is_pa:
         builder.proxy(proxy_url).get_updates_proxy(proxy_url)
         print("🌐 Usando proxy de PythonAnywhere")
-    
+
     application = (
         builder
         .connect_timeout(30.0)
@@ -77,13 +85,12 @@ def main():
     application.add_handler(CallbackQueryHandler(use_idol_for_event, pattern=r"^use_idol_\d+_\d+$"))
     application.add_handler(CallbackQueryHandler(nsfw_info_handler, pattern=r"^nsfw_info_\d+_\d+$"))
     application.add_handler(CallbackQueryHandler(nsfw_train_handler, pattern=r"^nsfw_tr_"))
-    application.add_handler(CallbackQueryHandler(nsfw_info_handler, pattern=r"^nsfw_info_\d+_\d+$"))
-    application.add_handler(CallbackQueryHandler(nsfw_train_handler, pattern=r"^nsfw_tr_"))
     application.add_handler(CallbackQueryHandler(help_points_handler, pattern="^help_pts$"))
     application.add_handler(CallbackQueryHandler(noop_handler, pattern="^noop$"))
 
     print("🤖 Bot running: Gacha, Market, Events, Admin commands active")
     application.run_polling(bootstrap_retries=-1, drop_pending_updates=True)
+
 
 if __name__ == "__main__":
     main()

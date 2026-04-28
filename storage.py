@@ -1,0 +1,444 @@
+"""
+Sistema de almacenamiento en JSON para el bot de idols.
+Reemplaza a SQLAlchemy para facilitar edición manual en PythonAnywhere.
+"""
+
+import json
+import os
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Any
+from pathlib import Path
+
+# Rutas de archivos JSON
+DATA_DIR = Path(__file__).parent / "data"
+USERS_FILE = DATA_DIR / "users.json"
+IDOLS_FILE = DATA_DIR / "idols.json"
+EVENTS_FILE = DATA_DIR / "events.json"
+GROUPS_FILE = DATA_DIR / "groups.json"
+
+# Asegurar que el directorio existe
+DATA_DIR.mkdir(exist_ok=True)
+
+
+def load_json(filepath: Path, default: Any = None) -> Any:
+    """Carga un archivo JSON o devuelve el valor por defecto si no existe."""
+    if not filepath.exists():
+        return default if default is not None else {}
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return default if default is not None else {}
+
+
+def save_json(filepath: Path, data: Any) -> None:
+    """Guarda datos en un archivo JSON."""
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+# ─── USERS ──────────────────────────────────────────────────────
+
+def get_all_users() -> Dict[int, dict]:
+    """Obtiene todos los usuarios."""
+    return load_json(USERS_FILE, {})
+
+
+def get_user(user_id: int) -> Optional[dict]:
+    """Obtiene un usuario por ID."""
+    users = get_all_users()
+    return users.get(user_id)
+
+
+def create_user(user_id: int, username: str = None) -> dict:
+    """Crea un nuevo usuario."""
+    users = get_all_users()
+    if user_id in users:
+        return users[user_id]
+
+    users[user_id] = {
+        "id": user_id,
+        "username": username or f"user_{user_id}",
+        "points": 1000,
+        "wins": 0,
+        "last_maintenance_check": datetime.utcnow().isoformat(),
+        "idols": []
+    }
+    save_json(USERS_FILE, users)
+    return users[user_id]
+
+
+def update_user(user_id: int, **kwargs) -> Optional[dict]:
+    """Actualiza un usuario."""
+    users = get_all_users()
+    if user_id not in users:
+        return None
+
+    for key, value in kwargs.items():
+        users[user_id][key] = value
+
+    save_json(USERS_FILE, users)
+    return users[user_id]
+
+
+def add_points(user_id: int, amount: int) -> Optional[dict]:
+    """Añade puntos a un usuario."""
+    user = get_user(user_id)
+    if not user:
+        create_user(user_id)
+        user = get_user(user_id)
+
+    user["points"] += amount
+    save_json(USERS_FILE, {user_id: user})
+    return user
+
+
+def deduct_points(user_id: int, amount: int) -> Optional[dict]:
+    """Dedica puntos a un usuario."""
+    user = get_user(user_id)
+    if not user:
+        create_user(user_id)
+        user = get_user(user_id)
+
+    user["points"] -= amount
+    save_json(USERS_FILE, {user_id: user})
+    return user
+
+
+# ─── IDOLS ──────────────────────────────────────────────────────
+
+def get_all_idols() -> Dict[int, dict]:
+    """Obtiene todas las idols."""
+    return load_json(IDOLS_FILE, {})
+
+
+def get_user_idols(user_id: int) -> List[dict]:
+    """Obtiene todas las idols de un usuario."""
+    all_idols = get_all_idols()
+    return [idol for idol in all_idols.values() if idol["user_id"] == user_id]
+
+
+def create_idol(
+    user_id: int,
+    template_id: int,
+    name: str,
+    group_name: str,
+    rarity: str,
+    base_vocal: int,
+    base_dance: int,
+    base_rap: int,
+) -> dict:
+    """Crea una nueva idol."""
+    idols = get_all_idols()
+    idol_id = len(idols) + 1
+
+    now = datetime.utcnow()
+    expiry = now + timedelta(days=7)
+
+    idol = {
+        "id": idol_id,
+        "user_id": user_id,
+        "template_id": template_id,
+        "name": name,
+        "group_name": group_name,
+        "rarity": rarity,
+        "vocal": base_vocal,
+        "dance": base_dance,
+        "rap": base_rap,
+        "morale": 100,
+        "energy": 100,
+        # NSFW Stats
+        "sensitivity": 50,
+        "coqueteo": 50,
+        "firmeza_culo": 50,
+        "habilidades_cama": 50,
+        "kinky": 50,
+        "status": "active",
+        "busy_until": None,
+        "contract_expiry": expiry.isoformat(),
+        "for_sale": False,
+        "sale_price": 0
+    }
+
+    idols[idol_id] = idol
+    save_json(IDOLS_FILE, idols)
+
+    # Actualizar lista de idols del usuario
+    user = get_user(user_id)
+    if user:
+        user["idols"].append(idol_id)
+        update_user(user_id, **{"idols": user["idols"]})
+
+    return idol
+
+
+def get_idol(idol_id: int) -> Optional[dict]:
+    """Obtiene una idol por ID."""
+    idols = get_all_idols()
+    return idols.get(idol_id)
+
+
+def update_idol(idol_id: int, **kwargs) -> Optional[dict]:
+    """Actualiza una idol."""
+    idols = get_all_idols()
+    if idol_id not in idols:
+        return None
+
+    for key, value in kwargs.items():
+        idols[idol_id][key] = value
+
+    save_json(IDOLS_FILE, idols)
+    return idols[idol_id]
+
+
+def delete_idol(idol_id: int) -> bool:
+    """Elimina una idol."""
+    idols = get_all_idols()
+    if idol_id not in idols:
+        return False
+
+    user_id = idols[idol_id]["user_id"]
+    del idols[idol_id]
+    save_json(IDOLS_FILE, idols)
+
+    # Actualizar lista de idols del usuario
+    user = get_user(user_id)
+    if user and idol_id in user["idols"]:
+        user["idols"].remove(idol_id)
+        update_user(user_id, **{"idols": user["idols"]})
+
+    return True
+
+
+# ─── GLOBAL EVENTS ──────────────────────────────────────────────
+
+def get_all_events() -> Dict[int, dict]:
+    """Obtiene todos los eventos globales."""
+    return load_json(EVENTS_FILE, {})
+
+
+def create_event(
+    event_type: str,
+    description: str,
+    points: int,
+) -> Optional[dict]:
+    """Crea un nuevo evento global."""
+    events = get_all_events()
+    event_id = len(events) + 1
+
+    now = datetime.utcnow()
+
+    event = {
+        "id": event_id,
+        "event_type": event_type,
+        "description": description,
+        "points": points,
+        "is_taken": False,
+        "taken_by_user_id": None,
+        "chat_id": None,
+        "message_id": None,
+        "created_at": now.isoformat()
+    }
+
+    events[event_id] = event
+    save_json(EVENTS_FILE, events)
+    return event
+
+
+def get_event(event_id: int) -> Optional[dict]:
+    """Obtiene un evento por ID."""
+    events = get_all_events()
+    return events.get(event_id)
+
+
+def take_event(event_id: int, user_id: int) -> bool:
+    """Marca un evento como tomado por un usuario."""
+    events = get_all_events()
+    if event_id not in events:
+        return False
+
+    events[event_id]["is_taken"] = True
+    events[event_id]["taken_by_user_id"] = user_id
+    save_json(EVENTS_FILE, events)
+    return True
+
+
+# ─── BOT GROUPS ─────────────────────────────────────────────────
+
+def get_all_groups() -> Dict[int, dict]:
+    """Obtiene todos los grupos."""
+    return load_json(GROUPS_FILE, {})
+
+
+def add_group(chat_id: int, title: str = "") -> Optional[dict]:
+    """Añade un grupo."""
+    groups = get_all_groups()
+
+    if chat_id in groups:
+        return groups[chat_id]
+
+    now = datetime.utcnow()
+
+    groups[chat_id] = {
+        "chat_id": chat_id,
+        "title": title or f"Group_{chat_id}",
+        "added_at": now.isoformat()
+    }
+    save_json(GROUPS_FILE, groups)
+    return groups[chat_id]
+
+
+def get_group(chat_id: int) -> Optional[dict]:
+    """Obtiene un grupo por chat_id."""
+    groups = get_all_groups()
+    return groups.get(chat_id)
+
+
+# ─── MIGRATION FROM SQLITE ─────────────────────────────────────
+
+def migrate_from_sqlite(sqlite_db_path: str = "idols_bot.db") -> bool:
+    """
+    Migra datos desde SQLite a JSON.
+    Ejecutar una vez para migrar datos existentes.
+    """
+    import sqlite3
+
+    if not os.path.exists(sqlite_db_path):
+        print(f"⚠️  {sqlite_db_path} no encontrado")
+        return False
+
+    conn = sqlite3.connect(sqlite_db_path)
+    cursor = conn.cursor()
+
+    try:
+        # Migrar usuarios
+        cursor.execute("SELECT id, username, points, wins FROM users")
+        rows = cursor.fetchall()
+        users = {}
+        for row in rows:
+            user_id, username, points, wins = row
+            users[user_id] = {
+                "id": user_id,
+                "username": username or f"user_{user_id}",
+                "points": points,
+                "wins": wins,
+                "last_maintenance_check": datetime.utcnow().isoformat(),
+                "idols": []
+            }
+        save_json(USERS_FILE, users)
+        print(f"✅ Migrados {len(users)} usuarios")
+
+        # Migrar idols
+        cursor.execute("""
+            SELECT id, user_id, template_id, vocal, dance, rap, morale, energy,
+                   status, busy_until, contract_expiry, for_sale, sale_price
+            FROM user_idols
+        """)
+        rows = cursor.fetchall()
+        idols = {}
+
+        # Obtener templates para nombre y grupo
+        cursor.execute("SELECT id, name, group_name, rarity, base_vocal, base_dance, base_rap FROM idol_templates")
+        templates = {row[0]: row for row in cursor.fetchall()}
+
+        for row in rows:
+            idol_id, user_id, template_id, vocal, dance, rap, morale, energy, \
+                status, busy_until, contract_expiry, for_sale, sale_price = row
+
+            tmpl = templates.get(template_id, ("Unknown", "Unknown Group", "C", 10, 10, 10))
+            name, group_name, rarity, base_vocal, base_dance, base_rap = tmpl
+
+            idols[idol_id] = {
+                "id": idol_id,
+                "user_id": user_id,
+                "template_id": template_id,
+                "name": name.replace("_", " "),
+                "group_name": group_name.replace("_", " "),
+                "rarity": rarity,
+                "vocal": vocal or base_vocal,
+                "dance": dance or base_dance,
+                "rap": rap or base_rap,
+                "morale": morale or 100,
+                "energy": energy or 100,
+                # NSFW Stats con default 50
+                "sensitivity": 50,
+                "coqueteo": 50,
+                "firmeza_culo": 50,
+                "habilidades_cama": 50,
+                "kinky": 50,
+                "status": status or "active",
+                "busy_until": busy_until,
+                "contract_expiry": contract_expiry,
+                "for_sale": for_sale or False,
+                "sale_price": sale_price or 0
+            }
+
+        save_json(IDOLS_FILE, idols)
+        print(f"✅ Migrados {len(idols)} idols")
+
+        # Actualizar lista de idols en usuarios
+        updated_users = {}
+        for user_id in users:
+            user = users[user_id].copy()
+            user["idols"] = [iid for iid, idol in idols.items() if idol["user_id"] == user_id]
+            updated_users[user_id] = user
+        save_json(USERS_FILE, updated_users)
+
+        # Migrar eventos globales
+        cursor.execute("SELECT id, event_type, description, points, is_taken, taken_by_user_id, chat_id, message_id, created_at FROM global_events")
+        rows = cursor.fetchall()
+        events = {}
+        for row in rows:
+            event_id, event_type, description, points, is_taken, taken_by_user_id, \
+                chat_id, message_id, created_at = row
+
+            events[event_id] = {
+                "id": event_id,
+                "event_type": event_type,
+                "description": description or "",
+                "points": points,
+                "is_taken": is_taken or False,
+                "taken_by_user_id": taken_by_user_id,
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "created_at": created_at or datetime.utcnow().isoformat()
+            }
+        save_json(EVENTS_FILE, events)
+        print(f"✅ Migrados {len(events)} eventos")
+
+        # Migrar grupos
+        cursor.execute("SELECT chat_id, title, added_at FROM bot_groups")
+        rows = cursor.fetchall()
+        groups = {}
+        for row in rows:
+            chat_id, title, added_at = row
+            groups[chat_id] = {
+                "chat_id": chat_id,
+                "title": title or f"Group_{chat_id}",
+                "added_at": added_at or datetime.utcnow().isoformat()
+            }
+        save_json(GROUPS_FILE, groups)
+        print(f"✅ Migrados {len(groups)} grupos")
+
+        conn.close()
+        print("\n🎉 ¡Migración completada!")
+        return True
+
+    except Exception as e:
+        print(f"❌ Error en migración: {e}")
+        conn.close()
+        return False
+
+
+# ─── INIT ──────────────────────────────────────────────────────
+
+def init_storage():
+    """Inicializa los archivos JSON si no existen."""
+    if not USERS_FILE.exists():
+        save_json(USERS_FILE, {})
+    if not IDOLS_FILE.exists():
+        save_json(IDOLS_FILE, {})
+    if not EVENTS_FILE.exists():
+        save_json(EVENTS_FILE, {})
+    if not GROUPS_FILE.exists():
+        save_json(GROUPS_FILE, {})

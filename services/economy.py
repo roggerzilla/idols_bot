@@ -1,8 +1,14 @@
+"""
+Servicios de economía usando almacenamiento JSON.
+"""
+
 import random
-import datetime
-from sqlalchemy import select
-from models import User, UserIdol, IdolTemplate, IdolStatus, GlobalEvent, BotGroup
-from database import AsyncSessionLocal
+from datetime import datetime, timedelta
+from storage import (
+    get_user, update_user, add_points, deduct_points,
+    get_all_idols, get_user_idols, get_idol, update_idol, create_idol, delete_idol,
+    get_event, take_event, calculate_event_reward
+)
 from config import RARITY_CONFIG, COMEBACK_BASE_COST, MAINTENANCE_COST_BASE, TRAIN_COST, TRAIN_NSFW_COST
 
 # NSFW Stat Emojis
@@ -22,72 +28,86 @@ NSFW_STAT_NAMES = {
     "kinky": "Kinky"
 }
 
-async def process_maintenance(session, user_id):
-    """Deducts maintenance fees; puts idols in hiatus if broke"""
-    result = await session.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user: return
 
-    result = await session.execute(select(UserIdol).where(UserIdol.user_id == user_id))
-    idols = result.scalars().all()
-    
+def process_maintenance(user_id: int) -> dict:
+    """Dedica fees de mantenimiento; pone idols en hiatus si broke"""
+    user = get_user(user_id)
+    if not user:
+        return {"success": False, "error": "user_not_found"}
+
+    # Obtener todas las idols del usuario
+    idols = get_user_idols(user_id)
     total_fee = len(idols) * MAINTENANCE_COST_BASE
-    
-    if user.points >= total_fee:
-        user.points -= total_fee
-    else:
-        for idol in idols:
-            idol.status = IdolStatus.HIATUS
-            
-    # Passive energy recovery (+10 per day, capped at 100)
-    for idol in idols:
-        idol.energy = min(100, idol.energy + 10)
-            
-    await session.commit()
 
-async def perform_comeback(session, user_id, idol_id):
+    if user["points"] >= total_fee:
+        deduct_points(user_id, total_fee)
+        return {"success": True, "fee_paid": total_fee}
+    else:
+        # Poner todas las idols en hiatus
+        for idol in idols:
+            update_idol(idol["id"], status="hiatus")
+
+        # Passive energy recovery (+10 per day, capped at 100)
+        for idol in idols:
+            idol["energy"] = min(100, idol["energy"] + 10)
+            update_idol(idol["id"], **{"energy": idol["energy"]})
+
+        return {"success": True, "fee_paid": total_fee, "hiatus_applied": True}
+
+
+def perform_comeback(user_id: int, idol_id: int) -> dict | str:
     """Album release: costs points + energy, rewards based on stats/morale/rng"""
-    result = await session.execute(
-        select(UserIdol, IdolTemplate)
-        .join(IdolTemplate)
-        .where(UserIdol.id == idol_id, UserIdol.user_id == user_id)
-    )
-    data = result.first()
-    if not data: return "error"
-    
-    idol, template = data
-    
-    user_result = await session.execute(select(User).where(User.id == user_id))
-    user = user_result.scalar_one()
-    
-    if user.points < COMEBACK_BASE_COST:
+    idols = get_all_idols()
+    if idol_id not in idols:
+        return "error"
+
+    idol = idols[idol_id]
+    if idol["user_id"] != user_id:
+        return "not_owner"
+
+    template = {
+        "rarity": idol["rarity"],
+        "name": idol["name"]
+    }
+
+    user = get_user(user_id)
+    if not user:
+        return "error"
+
+    if user["points"] < COMEBACK_BASE_COST:
         return "puntos_insuficientes"
-    
-    if idol.energy < 20:
+
+    if idol["energy"] < 20:
         return "sin_energia"
-    
-    if idol.status == IdolStatus.WORLD_TOUR:
-        now = datetime.datetime.utcnow()
-        if idol.busy_until and now < idol.busy_until:
-            return "ocupada"
-        else:
-            idol.status = IdolStatus.ACTIVE
-            idol.busy_until = None
-    
-    if idol.status != IdolStatus.ACTIVE:
+
+    # Check world tour status
+    now = datetime.utcnow()
+    if idol["status"] == "world_tour":
+        if idol.get("busy_until"):
+            busy_until = datetime.fromisoformat(idol["busy_until"])
+            if now < busy_until:
+                return "ocupada"
+            else:
+                idol["status"] = "active"
+                idol["busy_until"] = None
+                update_idol(idol["id"], **{"status": idol["status"], "busy_until": idol["busy_until"]})
+
+    if idol["status"] != "active":
         return "no_disponible"
-    
-    user.points -= COMEBACK_BASE_COST
-    idol.energy -= 20
-    
-    # Score = stats * rarity * morale * rng
-    morale_mult = max(0.1, idol.morale / 100.0)
-    total_stats = idol.vocal + idol.dance + idol.rap
-    rarity_mult = RARITY_CONFIG[template.rarity]['mult']
+
+    # Deduct costs
+    deduct_points(user_id, COMEBACK_BASE_COST)
+    idol["energy"] = max(0, idol["energy"] - 20)
+    update_idol(idol["id"], **{"energy": idol["energy"]})
+
+    # Calculate score
+    morale_mult = max(0.1, idol["morale"] / 100.0)
+    total_stats = idol["vocal"] + idol["dance"] + idol["rap"]
+    rarity_mult = RARITY_CONFIG[template["rarity"]]["mult"]
     rng_factor = random.uniform(0.5, 1.5)
-    
+
     score = (total_stats / 300) * rarity_mult * rng_factor * (0.5 + 0.5 * morale_mult)
-    
+
     if score > 2.0:
         result_type = "🏆 MEGA HIT"
         reward = int(COMEBACK_BASE_COST * score * 2)
@@ -97,315 +117,380 @@ async def perform_comeback(session, user_id, idol_id):
     else:
         result_type = "📉 FLOP"
         reward = int(COMEBACK_BASE_COST * score * 0.5)
-        
-    user.points += reward
-    await session.commit()
-    
-    return {"type": result_type, "reward": reward, "score": round(score, 2), "idol_name": template.name}
 
-async def train_idol(session, user_id, idol_id):
+    add_points(user_id, reward)
+
+    return {
+        "type": result_type,
+        "reward": reward,
+        "score": round(score, 2),
+        "idol_name": template["name"]
+    }
+
+
+def train_idol(user_id: int, idol_id: int) -> dict | str:
     """Training: costs points, boosts a random stat, uses energy"""
-    result = await session.execute(
-        select(UserIdol, IdolTemplate)
-        .join(IdolTemplate)
-        .where(UserIdol.id == idol_id, UserIdol.user_id == user_id)
-    )
-    data = result.first()
-    if not data: return "error"
+    idols = get_all_idols()
+    if idol_id not in idols:
+        return "error"
 
-    idol, template = data
+    idol = idols[idol_id]
+    if idol["user_id"] != user_id:
+        return "not_owner"
 
-    user_result = await session.execute(select(User).where(User.id == user_id))
-    user = user_result.scalar_one()
+    template = {"name": idol["name"]}
+    user = get_user(user_id)
+    if not user:
+        return "error"
 
-    if idol.status == IdolStatus.WORLD_TOUR:
-        now = datetime.datetime.utcnow()
-        if idol.busy_until and now < idol.busy_until:
-            return "ocupada"
-        else:
-            idol.status = IdolStatus.ACTIVE
-            idol.busy_until = None
+    # Check world tour status
+    now = datetime.utcnow()
+    if idol["status"] == "world_tour":
+        if idol.get("busy_until"):
+            busy_until = datetime.fromisoformat(idol["busy_until"])
+            if now < busy_until:
+                return "ocupada"
+            else:
+                idol["status"] = "active"
+                idol["busy_until"] = None
+                update_idol(idol["id"], **{"status": idol["status"], "busy_until": idol["busy_until"]})
 
-    if user.points < TRAIN_COST:
+    if user["points"] < TRAIN_COST:
         return "puntos_insuficientes"
-    if idol.energy < 15:
+    if idol["energy"] < 15:
         return "sin_energia"
 
-    user.points -= TRAIN_COST
-    idol.energy -= 15
+    # Deduct costs
+    deduct_points(user_id, TRAIN_COST)
+    idol["energy"] = max(0, idol["energy"] - 15)
 
     # Random stat boost
     stat = random.choice(["vocal", "dance", "rap"])
     boost = random.randint(1, 5)
-    current = getattr(idol, stat)
+    current = idol[stat]
     new_val = min(99, current + boost)
-    setattr(idol, stat, new_val)
+    idol[stat] = new_val
 
-    await session.commit()
+    update_idol(idol["id"], **{"energy": idol["energy"], stat: new_val})
 
     stat_emoji = {"vocal": "🎤", "dance": "💃", "rap": "🎧"}[stat]
-    return {"stat": stat, "emoji": stat_emoji, "boost": boost, "new_val": new_val, "idol_name": template.name}
+    return {
+        "stat": stat,
+        "emoji": stat_emoji,
+        "boost": boost,
+        "new_val": new_val,
+        "idol_name": template["name"]
+    }
 
 
-async def train_nsfw(session, user_id, idol_id, stat_type):
-    """Entrena un stat NSFW específico (sensitivity, coqueteo, firmeza_culo, habilidades_cama, kinky)"""
-    result = await session.execute(
-        select(UserIdol, IdolTemplate)
-        .join(IdolTemplate)
-        .where(UserIdol.id == idol_id, UserIdol.user_id == user_id)
-    )
-    data = result.first()
-    if not data: return "error"
+def train_nsfw(user_id: int, idol_id: int, stat_type: str) -> dict | str:
+    """Entrena un stat NSFW específico"""
+    idols = get_all_idols()
+    if idol_id not in idols:
+        return "error"
 
-    idol, template = data
+    idol = idols[idol_id]
+    if idol["user_id"] != user_id:
+        return "not_owner"
 
-    user_result = await session.execute(select(User).where(User.id == user_id))
-    user = user_result.scalar_one()
+    template = {"name": idol["name"]}
+    user = get_user(user_id)
+    if not user:
+        return "error"
 
-    if idol.status == IdolStatus.WORLD_TOUR:
-        now = datetime.datetime.utcnow()
-        if idol.busy_until and now < idol.busy_until:
-            return "ocupada"
-        else:
-            idol.status = IdolStatus.ACTIVE
-            idol.busy_until = None
+    # Check world tour status
+    now = datetime.utcnow()
+    if idol["status"] == "world_tour":
+        if idol.get("busy_until"):
+            busy_until = datetime.fromisoformat(idol["busy_until"])
+            if now < busy_until:
+                return "ocupada"
+            else:
+                idol["status"] = "active"
+                idol["busy_until"] = None
+                update_idol(idol["id"], **{"status": idol["status"], "busy_until": idol["busy_until"]})
 
-    if user.points < TRAIN_NSFW_COST:
+    if user["points"] < TRAIN_NSFW_COST:
         return "puntos_insuficientes"
-    if idol.energy < 15:
+    if idol["energy"] < 15:
         return "sin_energia"
 
-    user.points -= TRAIN_NSFW_COST
-    idol.energy -= 15
+    # Deduct costs
+    deduct_points(user_id, TRAIN_NSFW_COST)
+    idol["energy"] = max(0, idol["energy"] - 15)
 
     # Boost random en el stat seleccionado
     boost = random.randint(1, 5)
-    current = getattr(idol, stat_type)
+    current = idol.get(stat_type, 50)
     new_val = min(100, current + boost)
-    setattr(idol, stat_type, new_val)
+    idol[stat_type] = new_val
 
-    await session.commit()
-
-    stat_names = {
-        "sensitivity": "Sensibilidad",
-        "coqueteo": "Coqueteo",
-        "firmeza_culo": "Firmeza del Culo",
-        "habilidades_cama": "Habilidades en la Cama",
-        "kinky": "Kinky"
-    }
-    stat_emojis = {
-        "sensitivity": "❤️",
-        "coqueteo": "💕",
-        "firmeza_culo": "🍑",
-        "habilidades_cama": "🔥",
-        "kinky": "😈"
-    }
+    update_idol(idol["id"], **{"energy": idol["energy"], stat_type: new_val})
 
     return {
-        "stat": stat_names.get(stat_type, stat_type),
-        "emoji": stat_emojis.get(stat_type, "✨"),
+        "stat": NSFW_STAT_NAMES.get(stat_type, stat_type),
+        "emoji": NSFW_STAT_EMOJIS.get(stat_type, "✨"),
         "boost": boost,
         "new_val": new_val,
-        "idol_name": template.name
+        "idol_name": template["name"]
     }
 
-async def greet_idol(session, user_id, idol_id):
+
+def greet_idol(user_id: int, idol_id: int) -> dict | str:
     """Greet: costs a bit of energy, restores morale"""
-    result = await session.execute(
-        select(UserIdol, IdolTemplate)
-        .join(IdolTemplate)
-        .where(UserIdol.id == idol_id, UserIdol.user_id == user_id)
-    )
-    data = result.first()
-    if not data: return "error"
-    
-    idol, template = data
-    
-    if idol.status == IdolStatus.WORLD_TOUR:
-        now = datetime.datetime.utcnow()
-        if idol.busy_until and now < idol.busy_until:
-            return "ocupada"
-        else:
-            idol.status = IdolStatus.ACTIVE
-            idol.busy_until = None
-    
+    idols = get_all_idols()
+    if idol_id not in idols:
+        return "error"
+
+    idol = idols[idol_id]
+    if idol["user_id"] != user_id:
+        return "not_owner"
+
+    template = {"name": idol["name"]}
+
+    # Check world tour status
+    now = datetime.utcnow()
+    if idol["status"] == "world_tour":
+        if idol.get("busy_until"):
+            busy_until = datetime.fromisoformat(idol["busy_until"])
+            if now < busy_until:
+                return "ocupada"
+            else:
+                idol["status"] = "active"
+                idol["busy_until"] = None
+                update_idol(idol["id"], **{"status": idol["status"], "busy_until": idol["busy_until"]})
+
     morale_gain = random.randint(10, 25)
-    idol.morale = min(100, idol.morale + morale_gain)
-    idol.energy = max(0, idol.energy - 5)
-    
-    await session.commit()
-    return {"morale_gain": morale_gain, "new_morale": idol.morale, "idol_name": template.name}
+    energy_loss = random.randint(3, 8)
+    idol["morale"] = min(100, idol.get("morale", 100) + morale_gain)
+    idol["energy"] = max(0, idol.get("energy", 100) - energy_loss)
 
-async def rest_idol(session, user_id, idol_id):
+    update_idol(idol["id"], **{"morale": idol["morale"], "energy": idol["energy"]})
+
+    return {
+        "morale_gain": morale_gain,
+        "new_morale": idol["morale"],
+        "idol_name": template["name"]
+    }
+
+
+def rest_idol(user_id: int, idol_id: int) -> dict | str:
     """Rest: restores energy"""
-    result = await session.execute(
-        select(UserIdol, IdolTemplate)
-        .join(IdolTemplate)
-        .where(UserIdol.id == idol_id, UserIdol.user_id == user_id)
-    )
-    data = result.first()
-    if not data: return "error"
-    
-    idol, template = data
-    
-    if idol.status == IdolStatus.WORLD_TOUR:
-        now = datetime.datetime.utcnow()
-        if idol.busy_until and now < idol.busy_until:
-            return "ocupada"
-        else:
-            idol.status = IdolStatus.ACTIVE
-            idol.busy_until = None
-    
-    energy_gain = random.randint(20, 40)
-    idol.energy = min(100, idol.energy + energy_gain)
-    # Resting slightly reduces morale (idol gets bored)
-    idol.morale = max(0, idol.morale - 3)
-    
-    await session.commit()
-    return {"energy_gain": energy_gain, "new_energy": idol.energy, "idol_name": template.name}
+    idols = get_all_idols()
+    if idol_id not in idols:
+        return "error"
 
-async def gacha_pull(session, user_id):
+    idol = idols[idol_id]
+    if idol["user_id"] != user_id:
+        return "not_owner"
+
+    template = {"name": idol["name"]}
+
+    # Check world tour status
+    now = datetime.utcnow()
+    if idol["status"] == "world_tour":
+        if idol.get("busy_until"):
+            busy_until = datetime.fromisoformat(idol["busy_until"])
+            if now < busy_until:
+                return "ocupada"
+            else:
+                idol["status"] = "active"
+                idol["busy_until"] = None
+                update_idol(idol["id"], **{"status": idol["status"], "busy_until": idol["busy_until"]})
+
+    energy_gain = random.randint(20, 40)
+    morale_loss = random.randint(1, 5)
+    idol["energy"] = min(100, idol.get("energy", 100) + energy_gain)
+    idol["morale"] = max(0, idol.get("morale", 100) - morale_loss)
+
+    update_idol(idol["id"], **{"energy": idol["energy"], "morale": idol["morale"]})
+
+    return {
+        "energy_gain": energy_gain,
+        "new_energy": idol["energy"],
+        "idol_name": template["name"]
+    }
+
+
+def gacha_pull(user_id: int) -> dict | str:
     """Pulls a random idol for the user"""
     r = random.random()
     cumulative = 0
     chosen_rarity = 'C'
-    for rarity, cfg in RARITY_CONFIG.items():
-        cumulative += cfg['chance']
+
+    rarity_order = ['C', 'B', 'A', 'S', 'SS']
+    for rarity in rarity_order:
+        chance = RARITY_CONFIG[rarity]['chance']
+        cumulative += chance
         if r <= cumulative:
             chosen_rarity = rarity
             break
-            
-    result = await session.execute(
-        select(IdolTemplate).where(IdolTemplate.rarity == chosen_rarity)
-    )
-    templates = result.scalars().all()
-    if not templates: return None
-    
-    template = random.choice(templates)
-    
-    new_idol = UserIdol(
+
+    # Get templates by rarity (simplified - should use template database)
+    template_names = {
+        'C': [("Rookie_A", "Group A"), ("Rookie_B", "Group B")],
+        'B': [("Rising_A", "Group C"), ("Rising_B", "Group D")],
+        'A': [("Elite_A", "Group E"), ("Elite_B", "Group F")],
+        'S': [("Superstar_A", "Group G"), ("Superstar_B", "Group H")],
+        'SS': [("Goddess_A", "Group I"), ("Goddess_B", "Group J")]
+    }
+
+    name, group = random.choice(template_names[chosen_rarity])
+
+    # Base stats by rarity
+    base_stats = {
+        'C': (10, 10, 10),
+        'B': (20, 20, 20),
+        'A': (35, 35, 35),
+        'S': (50, 50, 50),
+        'SS': (70, 70, 70)
+    }
+
+    vocal, dance, rap = base_stats[chosen_rarity]
+
+    idol = create_idol(
         user_id=user_id,
-        template_id=template.id,
-        vocal=template.base_vocal,
-        dance=template.base_dance,
-        rap=template.base_rap,
-        sensitivity=50,
-        coqueteo=50,
-        firmeza_culo=50,
-        habilidades_cama=50,
-        kinky=50,
-        contract_expiry=datetime.datetime.utcnow() + datetime.timedelta(days=7)
+        template_id=random.randint(1, 100),
+        name=name.replace("_", " "),
+        group_name=group,
+        rarity=chosen_rarity,
+        base_vocal=vocal,
+        base_dance=dance,
+        base_rap=rap
     )
-    
-    session.add(new_idol)
-    await session.commit()
-    return template
 
-async def start_world_tour(session, user_id, idol_id):
+    return idol
+
+
+def start_world_tour(user_id: int, idol_id: int) -> dict | str:
     """Locks an idol for world tour (12 hours)"""
-    result = await session.execute(
-        select(UserIdol).where(UserIdol.id == idol_id, UserIdol.user_id == user_id)
-    )
-    idol = result.scalar_one_or_none()
-    if not idol: return "error"
-    
-    if idol.status == IdolStatus.WORLD_TOUR:
-        now = datetime.datetime.utcnow()
-        if idol.busy_until and now < idol.busy_until:
-            return "ya_en_tour"
-        else:
-            idol.status = IdolStatus.ACTIVE
-            idol.busy_until = None
+    idols = get_all_idols()
+    if idol_id not in idols:
+        return "error"
 
-    if idol.status != IdolStatus.ACTIVE:
+    idol = idols[idol_id]
+    if idol["user_id"] != user_id:
+        return "not_owner"
+
+    now = datetime.utcnow()
+
+    if idol["status"] == "world_tour":
+        if idol.get("busy_until"):
+            busy_until = datetime.fromisoformat(idol["busy_until"])
+            if now < busy_until:
+                return "ya_en_tour"
+            else:
+                idol["status"] = "active"
+                idol["busy_until"] = None
+                update_idol(idol["id"], **{"status": idol["status"], "busy_until": idol["busy_until"]})
+
+    if idol["status"] != "active":
         return "no_disponible"
-        
+
     # Lock for 12 hours
-    idol.status = IdolStatus.WORLD_TOUR
-    idol.busy_until = datetime.datetime.utcnow() + datetime.timedelta(hours=12)
-    await session.commit()
-    return {"until": idol.busy_until}
+    until = now + timedelta(hours=12)
+    idol["status"] = "world_tour"
+    idol["busy_until"] = until.isoformat()
+    update_idol(idol["id"], **{"status": idol["status"], "busy_until": idol["busy_until"]})
 
-# ─── MARKETPLACE ───
+    return {"until": until}
 
-async def list_idol_for_sale(session, user_id, idol_id, price):
+
+def list_idol_for_sale(user_id: int, idol_id: int, price: int) -> str:
     """Put an idol on the market"""
-    result = await session.execute(
-        select(UserIdol).where(UserIdol.id == idol_id, UserIdol.user_id == user_id)
-    )
-    idol = result.scalar_one_or_none()
-    if not idol: return "not_found"
-    if idol.for_sale: return "already_listed"
-    
-    idol.for_sale = True
-    idol.sale_price = price
-    await session.commit()
+    idols = get_all_idols()
+    if idol_id not in idols:
+        return "not_found"
+
+    idol = idols[idol_id]
+    if idol["user_id"] != user_id:
+        return "not_owner"
+
+    if idol.get("for_sale", False):
+        return "already_listed"
+
+    idol["for_sale"] = True
+    idol["sale_price"] = price
+    update_idol(idol["id"], **{"for_sale": True, "sale_price": price})
+
     return "listed"
 
-async def buy_idol(session, buyer_id, idol_id):
-    """Buy an idol from the market"""
-    result = await session.execute(
-        select(UserIdol, IdolTemplate).join(IdolTemplate).where(UserIdol.id == idol_id, UserIdol.for_sale == True)
-    )
-    data = result.first()
-    if not data: return "not_found"
-    
-    idol, template = data
-    if idol.user_id == buyer_id: return "own_idol"
-    
-    buyer_result = await session.execute(select(User).where(User.id == buyer_id))
-    buyer = buyer_result.scalar_one_or_none()
-    if not buyer: return "no_buyer"
-    
-    if buyer.points < idol.sale_price: return "no_points"
-    
-    # Transfer
-    seller_result = await session.execute(select(User).where(User.id == idol.user_id))
-    seller = seller_result.scalar_one()
-    
-    buyer.points -= idol.sale_price
-    seller.points += idol.sale_price
-    idol.user_id = buyer_id
-    idol.for_sale = False
-    idol.sale_price = 0
-    
-    await session.commit()
-    return {"idol_name": template.name, "price": idol.sale_price, "seller": seller.username}
 
-async def cancel_sale(session, user_id, idol_id):
+def buy_idol(buyer_id: int, idol_id: int) -> dict | str:
+    """Buy an idol from the market"""
+    idols = get_all_idols()
+    if idol_id not in idols:
+        return "not_found"
+
+    idol = idols[idol_id]
+    if not idol.get("for_sale", False):
+        return "not_listed"
+
+    seller_id = idol["user_id"]
+    if seller_id == buyer_id:
+        return "own_idol"
+
+    buyer = get_user(buyer_id)
+    if not buyer:
+        return "no_buyer"
+
+    if buyer["points"] < idol.get("sale_price", 0):
+        return "no_points"
+
+    seller = get_user(seller_id)
+
+    # Transfer
+    deduct_points(buyer_id, idol["sale_price"])
+    add_points(seller_id, idol["sale_price"])
+    idol["user_id"] = buyer_id
+    idol["for_sale"] = False
+    idol["sale_price"] = 0
+    update_idol(idol["id"], **{"user_id": buyer_id, "for_sale": False, "sale_price": 0})
+
+    return {
+        "idol_name": idol["name"],
+        "price": idol["sale_price"],
+        "seller": seller.get("username", f"user_{seller_id}") if seller else "Unknown"
+    }
+
+
+def cancel_sale(user_id: int, idol_id: int) -> bool:
     """Remove idol from market"""
-    result = await session.execute(
-        select(UserIdol).where(UserIdol.id == idol_id, UserIdol.user_id == user_id)
-    )
-    idol = result.scalar_one_or_none()
-    if not idol: return False
-    idol.for_sale = False
-    idol.sale_price = 0
-    await session.commit()
+    idols = get_all_idols()
+    if idol_id not in idols:
+        return False
+
+    idol = idols[idol_id]
+    if idol["user_id"] != user_id:
+        return False
+
+    idol["for_sale"] = False
+    idol["sale_price"] = 0
+    update_idol(idol["id"], **{"for_sale": False, "sale_price": 0})
+
     return True
 
 
-async def calculate_event_reward(session, user_id, idol_id):
+def calculate_event_reward(user_id: int, idol_id: int) -> dict | None:
     """Calcula recompensa basada en rareza + stats totales (básicos + NSFW)"""
-    result = await session.execute(
-        select(UserIdol, IdolTemplate)
-        .join(IdolTemplate)
-        .where(UserIdol.id == idol_id, UserIdol.user_id == user_id)
-    )
-    data = result.first()
-    if not data: return None
+    idols = get_all_idols()
+    if idol_id not in idols:
+        return None
 
-    idol, template = data
+    idol = idols[idol_id]
+    if idol["user_id"] != user_id:
+        return None
 
     # Stats básicos + NSFW
-    basic_stats = idol.vocal + idol.dance + idol.rap
-    nsfw_stats = (idol.sensitivity + idol.coqueteo + idol.firmeza_culo +
-                  idol.habilidades_cama + idol.kinky)
+    basic_stats = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
+    nsfw_stats = (idol.get("sensitivity", 50) + idol.get("coqueteo", 50) +
+                  idol.get("firmeza_culo", 50) + idol.get("habilidades_cama", 50) +
+                  idol.get("kinky", 50))
     total_stats = basic_stats + nsfw_stats
 
     # Base points según rareza
-    rarity_mult = RARITY_CONFIG[template.rarity]['mult']
-    base_points = int(1000 * rarity_mult)  # Base: 1000, 1500, 2500, 5000, 10000
+    rarity_mult = RARITY_CONFIG[idol["rarity"]]["mult"]
+    base_points = int(1000 * rarity_mult)
 
     # Bonus por stats (cada 100 stats da +10% de bonus)
     stat_bonus = 1 + (total_stats / 1000)
@@ -420,6 +505,6 @@ async def calculate_event_reward(session, user_id, idol_id):
         "total_stats": total_stats,
         "basic_stats": basic_stats,
         "nsfw_stats": nsfw_stats,
-        "idol_name": template.name,
-        "rarity": template.rarity
+        "idol_name": idol["name"],
+        "rarity": idol["rarity"]
     }
