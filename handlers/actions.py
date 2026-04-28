@@ -619,18 +619,27 @@ async def help_points_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 async def help_game_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Muestra la guía completa del juego"""
+    """Muestra la guía completa y detallada del juego"""
     q = update.callback_query
     await q.answer()
     
     text = (
-        "📖 *GUÍA COMPLETA DEL JUEGO*\n"
+        "👑 *GUÍA DEFINITIVA DEL CEO DE IDOLS*\n"
         "━━━━━━━━━━━━━━━━━━\n"
-        "🎤 *Stats Normales:* Vocal, Dance y Rap. Sirven para que tus *Comebacks* sean exitosos y ganes más puntos.\n\n"
-        "🔞 *Stats NSFW:* Sensibilidad, Coqueteo, etc. Aumentan drásticamente el dinero que ganas en los *Eventos Globales* (contratos).\n\n"
-        "🔋 *Energía:* Se gasta al entrenar y hacer comebacks. Recupérala con el botón 'Descansar'.\n\n"
-        "❤️ *Moral:* Si la moral es baja, tus comebacks fallarán. Súbela con 'Saludar' o participando en eventos de Caridad.\n\n"
-        "✈️ *Tours:* Generan puntos cada hora mientras la idol no está. Ideal para cuando no vas a jugar un buen rato.\n"
+        "🎤 *HABILIDADES Y ÉXITO*\n"
+        "• *Talento (V, D, R):* Vocal, Dance y Rap. Determinan el éxito de los *Comebacks*. Un MEGA HIT puede darte x2 de recompensa.\n"
+        "• *Stats NSFW:* Sensibilidad, Coqueteo, Firmeza, Cama y Kinky. Son vitales para los *Eventos Globales*. A mayor nivel, ¡contratos más millonarios!\n\n"
+        "💎 *RAREZAS Y MULTIPLICADORES*\n"
+        "• `C` (40%): x1.0 | `B` (35%): x1.5\n"
+        "• `A` (18%): x2.5 | `S` (6%): x5.0\n"
+        "• `SS` (1%): x10.0 (¡Diosas Legendarias!)\n\n"
+        "💸 *ECONOMÍA Y GASTOS*\n"
+        "• *Mantenimiento:* Cada 24h pagas 50 pts por cada idol. Si no tienes puntos, tus idols entrarán en *Hiatus* (se pausan y no ganan nada).\n"
+        "• *Energía (⚡):* Se gasta al trabajar. Si baja de 20, no podrán hacer Comebacks. Recupérala con 'Descansar'.\n"
+        "• *Moral (❤️):* Afecta el Score. Si es baja, tus canciones serán un FLOP. Súbela con 'Saludar'.\n\n"
+        "🏪 *MERCADO Y TOURS*\n"
+        "• Puedes vender idols al precio que quieras. El mercado es global entre todos los jugadores.\n"
+        "• Los *World Tours* duran 12h y son la mejor forma de ganar puntos mientras no estás conectado.\n"
         "━━━━━━━━━━━━━━━━━━"
     )
     
