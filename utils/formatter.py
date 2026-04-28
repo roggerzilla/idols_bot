@@ -3,13 +3,13 @@ from models import IdolStatus
 
 def format_idol_card(idol, template, idx=None, total=None):
     """Compact idol card for the flat navigation UI"""
-    status_emoji = {
-        "ACTIVE": "✅",
-        "HIATUS": "😴",
-        "WORLD_TOUR": "✈️"
-    }.get(idol.status.name, "❓")
+    status_map = {
+        "ACTIVE": ("✅", "Activa"),
+        "HIATUS": ("😴", "Hiatus"),
+        "WORLD_TOUR": ("✈️", "En Tour"),
+    }
+    status_emoji, status_text = status_map.get(idol.status.name, ("❓", "Desconocido"))
     
-    status_text = idol.status.value.title()
     if idol.status == IdolStatus.WORLD_TOUR and idol.busy_until:
         now = datetime.datetime.utcnow()
         if now < idol.busy_until:
@@ -24,20 +24,24 @@ def format_idol_card(idol, template, idx=None, total=None):
     
     header = ""
     if idx is not None and total is not None:
-        header = f"📋 Idol {idx}/{total}\n"
+        header = f"Idol {idx}/{total}\n"
     
     sale_text = ""
     if idol.for_sale:
-        sale_text = f"\n🏷️ *EN VENTA:* `{idol.sale_price} pts`"
+        sale_text = f"\n🏷 EN VENTA: {idol.sale_price} pts"
+    
+    # Escape underscores in dynamic text for Markdown safety
+    name = template.name.replace("_", " ")
+    group = template.group_name.replace("_", " ")
     
     return (
         f"{header}"
-        f"🌟 *{template.name}* ({template.group_name}) [{template.rarity}]\n"
+        f"🌟 *{name}* ({group}) \\[{template.rarity}]\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"{status_emoji} Estado: {status_text}\n"
-        f"🎤 `{idol.vocal}` | 💃 `{idol.dance}` | 🎧 `{idol.rap}`\n"
-        f"❤️ Moral: [{morale_bars}] `{idol.morale}`\n"
-        f"⚡ Energía: [{energy_bars}] `{idol.energy}`"
+        f"🎤 {idol.vocal} | 💃 {idol.dance} | 🎧 {idol.rap}\n"
+        f"❤️ Moral: {morale_bars} {idol.morale}/100\n"
+        f"⚡ Energía: {energy_bars} {idol.energy}/100"
         f"{sale_text}"
     )
 
@@ -52,9 +56,11 @@ def format_user_profile(user, idols_count):
     )
 
 def format_market_listing(idol, template, owner_name):
+    name = template.name.replace("_", " ")
+    group = template.group_name.replace("_", " ")
     return (
-        f"🏷️ *{template.name}* ({template.group_name}) [{template.rarity}]\n"
-        f"🎤 `{idol.vocal}` | 💃 `{idol.dance}` | 🎧 `{idol.rap}`\n"
-        f"💰 Precio: `{idol.sale_price} pts`\n"
+        f"🏷 *{name}* ({group}) \\[{template.rarity}]\n"
+        f"🎤 {idol.vocal} | 💃 {idol.dance} | 🎧 {idol.rap}\n"
+        f"💰 Precio: {idol.sale_price} pts\n"
         f"👤 Vendedor: {owner_name}"
     )

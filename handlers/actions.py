@@ -225,7 +225,7 @@ async def sell_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def list_sell_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
-    iid, price = int(parts[1]), int(parts[2])
+    iid, idx, price = int(parts[1]), int(parts[2]), int(parts[3])
     async with AsyncSessionLocal() as session:
         r = await list_idol_for_sale(session, q.from_user.id, iid, price)
         if r == "listed":
