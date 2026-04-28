@@ -1,0 +1,7 @@
+idols_bot.db
+__pycache__/
+*.pyc
+.env
+.gemini/
+*.zip
+*.7z
