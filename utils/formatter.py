@@ -13,12 +13,13 @@ def format_idol_card(idol, template, idx=None, total=None):
         "active": ("✅", "Activa"),
         "hiatus": ("😴", "Hiatus"),
         "world_tour": ("✈️", "En Tour"),
+        "resting": ("😴", "Descansando"),
     }
 
     status_emoji, status_text = status_map.get(idol.get("status", "active"), ("❓", "Desconocido"))
 
-    # Check busy_until for tour time remaining
-    if idol.get("status") == "world_tour" and idol.get("busy_until"):
+    # Check busy_until for tour/rest time remaining
+    if idol.get("status") in ["world_tour", "resting"] and idol.get("busy_until"):
         try:
             busy_until = datetime.fromisoformat(idol["busy_until"])
             now = datetime.utcnow()

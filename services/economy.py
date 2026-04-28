@@ -29,6 +29,35 @@ NSFW_STAT_NAMES = {
 }
 
 
+def _check_idol_busy(idol: dict) -> str | None:
+    """
+    Verifica si una idol está ocupada (tour o descanso).
+    Si el tiempo ya pasó, la libera y devuelve None.
+    Si sigue ocupada, devuelve el tipo de ocupación.
+    """
+    status = idol.get("status", "active")
+    if status not in ["world_tour", "resting"]:
+        return None
+
+    if not idol.get("busy_until"):
+        # Si no tiene tiempo pero el estado dice ocupada, la liberamos por seguridad
+        idol["status"] = "active"
+        update_idol(idol["id"], **{"status": "active", "busy_until": None})
+        return None
+
+    now = datetime.utcnow()
+    busy_until = datetime.fromisoformat(idol["busy_until"])
+
+    if now >= busy_until:
+        # Ya terminó el tiempo
+        idol["status"] = "active"
+        idol["busy_until"] = None
+        update_idol(idol["id"], **{"status": "active", "busy_until": None})
+        return None
+
+    return status
+
+
 def process_maintenance(user_id: int) -> dict:
     """Dedica fees de mantenimiento; pone idols en hiatus si broke"""
     user = get_user(user_id)
@@ -80,17 +109,10 @@ def perform_comeback(user_id: int, idol_id: int) -> dict | str:
     if idol["energy"] < 20:
         return "sin_energia"
 
-    # Check world tour status
-    now = datetime.utcnow()
-    if idol["status"] == "world_tour":
-        if idol.get("busy_until"):
-            busy_until = datetime.fromisoformat(idol["busy_until"])
-            if now < busy_until:
-                return "ocupada"
-            else:
-                idol["status"] = "active"
-                idol["busy_until"] = None
-                update_idol(idol["id"], **{"status": idol["status"], "busy_until": idol["busy_until"]})
+    # Check busy status
+    busy = _check_idol_busy(idol)
+    if busy:
+        return "ocupada"
 
     if idol["status"] != "active":
         return "no_disponible"
@@ -143,17 +165,10 @@ def train_idol(user_id: int, idol_id: int) -> dict | str:
     if not user:
         return "error"
 
-    # Check world tour status
-    now = datetime.utcnow()
-    if idol["status"] == "world_tour":
-        if idol.get("busy_until"):
-            busy_until = datetime.fromisoformat(idol["busy_until"])
-            if now < busy_until:
-                return "ocupada"
-            else:
-                idol["status"] = "active"
-                idol["busy_until"] = None
-                update_idol(idol["id"], **{"status": idol["status"], "busy_until": idol["busy_until"]})
+    # Check busy status
+    busy = _check_idol_busy(idol)
+    if busy:
+        return "ocupada"
 
     if user["points"] < TRAIN_COST:
         return "puntos_insuficientes"
@@ -198,17 +213,10 @@ def train_nsfw(user_id: int, idol_id: int, stat_type: str) -> dict | str:
     if not user:
         return "error"
 
-    # Check world tour status
-    now = datetime.utcnow()
-    if idol["status"] == "world_tour":
-        if idol.get("busy_until"):
-            busy_until = datetime.fromisoformat(idol["busy_until"])
-            if now < busy_until:
-                return "ocupada"
-            else:
-                idol["status"] = "active"
-                idol["busy_until"] = None
-                update_idol(idol["id"], **{"status": idol["status"], "busy_until": idol["busy_until"]})
+    # Check busy status
+    busy = _check_idol_busy(idol)
+    if busy:
+        return "ocupada"
 
     if user["points"] < TRAIN_NSFW_COST:
         return "puntos_insuficientes"
@@ -248,17 +256,10 @@ def greet_idol(user_id: int, idol_id: int) -> dict | str:
 
     template = {"name": idol["name"]}
 
-    # Check world tour status
-    now = datetime.utcnow()
-    if idol["status"] == "world_tour":
-        if idol.get("busy_until"):
-            busy_until = datetime.fromisoformat(idol["busy_until"])
-            if now < busy_until:
-                return "ocupada"
-            else:
-                idol["status"] = "active"
-                idol["busy_until"] = None
-                update_idol(idol["id"], **{"status": idol["status"], "busy_until": idol["busy_until"]})
+    # Check busy status
+    busy = _check_idol_busy(idol)
+    if busy:
+        return "ocupada"
 
     morale_gain = random.randint(10, 25)
     energy_loss = random.randint(3, 8)
@@ -286,29 +287,35 @@ def rest_idol(user_id: int, idol_id: int) -> dict | str:
 
     template = {"name": idol["name"]}
 
-    # Check world tour status
-    now = datetime.utcnow()
-    if idol["status"] == "world_tour":
-        if idol.get("busy_until"):
-            busy_until = datetime.fromisoformat(idol["busy_until"])
-            if now < busy_until:
-                return "ocupada"
-            else:
-                idol["status"] = "active"
-                idol["busy_until"] = None
-                update_idol(idol["id"], **{"status": idol["status"], "busy_until": idol["busy_until"]})
+    # Check busy status
+    busy = _check_idol_busy(idol)
+    if busy:
+        return "ocupada"
+
+    from config import REST_DURATION_HOURS
 
     energy_gain = random.randint(20, 40)
     morale_loss = random.randint(1, 5)
+    
+    until = datetime.utcnow() + timedelta(hours=REST_DURATION_HOURS)
+    
     idol["energy"] = min(100, idol.get("energy", 100) + energy_gain)
     idol["morale"] = max(0, idol.get("morale", 100) - morale_loss)
+    idol["status"] = "resting"
+    idol["busy_until"] = until.isoformat()
 
-    update_idol(idol["id"], **{"energy": idol["energy"], "morale": idol["morale"]})
+    update_idol(idol["id"], **{
+        "energy": idol["energy"], 
+        "morale": idol["morale"],
+        "status": "resting",
+        "busy_until": idol["busy_until"]
+    })
 
     return {
         "energy_gain": energy_gain,
         "new_energy": idol["energy"],
-        "idol_name": template["name"]
+        "idol_name": template["name"],
+        "until": until
     }
 
 
@@ -374,15 +381,12 @@ def start_world_tour(user_id: int, idol_id: int) -> dict | str:
 
     now = datetime.utcnow()
 
-    if idol["status"] == "world_tour":
-        if idol.get("busy_until"):
-            busy_until = datetime.fromisoformat(idol["busy_until"])
-            if now < busy_until:
-                return "ya_en_tour"
-            else:
-                idol["status"] = "active"
-                idol["busy_until"] = None
-                update_idol(idol["id"], **{"status": idol["status"], "busy_until": idol["busy_until"]})
+    # Check busy status
+    busy = _check_idol_busy(idol)
+    if busy == "world_tour":
+        return "ya_en_tour"
+    if busy:
+        return "ocupada"
 
     if idol["status"] != "active":
         return "no_disponible"

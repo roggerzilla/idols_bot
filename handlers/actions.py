@@ -232,12 +232,15 @@ async def rest_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     r = rest_idol(q.from_user.id, iid)
 
     if r == "ocupada":
-        await q.answer("✈️ Idol en Tour. Espera a que regrese.", show_alert=True); return
+        await q.answer("✈️ Idol ocupada (Tour o Descanso).", show_alert=True); return
     if r == "error" or r == "not_owner":
         await q.answer("❌ Error.", show_alert=True); return
-
+        
+    # Show wake up time
+    until = r['until'].strftime("%H:%M")
     await q.edit_message_text(
-        f"😴 *{r['idol_name']} descansó*\n⚡ Energía +{r['energy_gain']} → `{r['new_energy']}/100`",
+        f"😴 *{r['idol_name']} se fue a dormir*\n⚡ Energía +{r['energy_gain']} → `{r['new_energy']}/100`\n"
+        f"Regresará a las `{until} UTC`.",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}")]]),
         parse_mode="Markdown")
 
