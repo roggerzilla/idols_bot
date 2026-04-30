@@ -165,8 +165,8 @@ def perform_comeback(user_id: int, idol_id: int) -> dict | str:
     }
 
 
-def train_idol(user_id: int, idol_id: int) -> dict | str:
-    """Training: costs points, boosts a random stat, uses energy"""
+def train_idol(user_id: int, idol_id: int, stat_type: str = None) -> dict | str:
+    """Training: costs points, boosts a specific stat, uses energy"""
     idols = get_all_idols()
     if str(idol_id) not in idols:
         return "error"
@@ -194,16 +194,18 @@ def train_idol(user_id: int, idol_id: int) -> dict | str:
     deduct_points(user_id, TRAIN_COST)
     idol["energy"] = max(0, idol["energy"] - 15)
 
-    # Random stat boost
-    stat = random.choice(["vocal", "dance", "rap"])
-    boost = random.randint(1, 5)
-    current = idol[stat]
-    new_val = min(99, current + boost)
+    # Stat boost
+    possible_stats = ["vocal", "dance", "rap"]
+    stat = stat_type if stat_type in possible_stats else random.choice(possible_stats)
+    
+    boost = random.randint(3, 8)
+    current = idol.get(stat, 0)
+    new_val = min(100, current + boost)
     idol[stat] = new_val
 
     update_idol(idol["id"], **{"energy": idol["energy"], stat: new_val})
 
-    stat_emoji = {"vocal": "🎤", "dance": "💃", "rap": "🎧"}[stat]
+    stat_emoji = {"vocal": "🎤", "dance": "💃", "rap": "🎧"}.get(stat, "✨")
     return {
         "stat": stat,
         "emoji": stat_emoji,

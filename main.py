@@ -12,7 +12,7 @@ from config import TELEGRAM_TOKEN
 from handlers.commands import start, profile_handler, back_main, admin_evento, help_command, admin_personal_event
 from handlers.actions import (
     gacha_handler, idols_handler, comeback_handler,
-    train_handler, interact_menu_handler, interact_execute_handler,
+    train_menu_handler, train_execute_handler, interact_menu_handler, interact_execute_handler,
     rest_handler, tour_handler, sell_handler, list_sell_handler,
     market_handler, buy_handler, claim_handler, noop_handler, help_points_handler,
     select_idol_for_event, use_idol_for_event, nsfw_info_handler, nsfw_train_handler,
@@ -79,7 +79,8 @@ def create_application():
     application.add_handler(CallbackQueryHandler(gacha_handler, pattern="^gacha_\\d+$"))
     application.add_handler(CallbackQueryHandler(idols_handler, pattern=r"^idols_\d+_\d+$"))
     application.add_handler(CallbackQueryHandler(comeback_handler, pattern=r"^cb_\d+_\d+_\d+$"))
-    application.add_handler(CallbackQueryHandler(train_handler, pattern=r"^tr_\d+_\d+_\d+$"))
+    application.add_handler(CallbackQueryHandler(train_menu_handler, pattern=r"^tr_menu_"))
+    application.add_handler(CallbackQueryHandler(train_execute_handler, pattern=r"^tr_exe_"))
     application.add_handler(CallbackQueryHandler(interact_menu_handler, pattern=r"^int_menu_"))
     application.add_handler(CallbackQueryHandler(interact_execute_handler, pattern=r"^int_exe_"))
     application.add_handler(CallbackQueryHandler(personal_event_handler, pattern=r"^pev_acc_"))

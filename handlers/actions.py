@@ -191,7 +191,7 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         nav,
         [
             InlineKeyboardButton("💿 Comeback", callback_data=f"cb_{idol['id']}_{idx}_{uid}"),
-            InlineKeyboardButton("💪 Entrenar", callback_data=f"tr_{idol['id']}_{idx}_{uid}"),
+            InlineKeyboardButton("💪 Entrenar", callback_data=f"tr_menu_{idol['id']}_{idx}_{uid}"),
             InlineKeyboardButton("🔞 Entrenar +18", callback_data=f"nsfw_info_{idol['id']}_{idx}_{uid}")
         ],
         [
@@ -240,30 +240,66 @@ async def comeback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ─── TRAIN ───
-async def train_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def train_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra opciones de entrenamiento (Vocal, Dance, Rap)"""
     q = update.callback_query
     parts = q.data.split("_")
-    iid, idx = int(parts[1]), int(parts[2])
-    owner_id = int(parts[3]) if len(parts) > 3 else 0
+    # tr_menu_{iid}_{idx}_{owner_id}
+    iid, idx, owner_id = int(parts[2]), int(parts[3]), int(parts[4])
 
     if q.from_user.id != owner_id:
-        await q.answer("❌ Este entrenamiento no es tuyo.", show_alert=True)
-        return
+        await q.answer("❌ No es tu idol.", show_alert=True); return
 
-    r = train_idol(q.from_user.id, iid)
+    await q.answer()
+    
+    text = (
+        "💪 *CENTRO DE ENTRENAMIENTO*\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "¿En qué área quieres que tu idol mejore hoy?\n\n"
+        "🎤 *Vocal:* Mejora el canto y técnica.\n"
+        "💃 *Dance:* Mejora el baile y presencia.\n"
+        "🎧 *Rap:* Mejora el ritmo y lírica.\n\n"
+        "💰 Costo: `200 pts` | ⚡ Energía: `-15`"
+    )
+
+    kb = [
+        [
+            InlineKeyboardButton("🎤 Vocal", callback_data=f"tr_exe_vocal_{iid}_{idx}_{owner_id}"),
+            InlineKeyboardButton("💃 Dance", callback_data=f"tr_exe_dance_{iid}_{idx}_{owner_id}"),
+            InlineKeyboardButton("🎧 Rap", callback_data=f"tr_exe_rap_{iid}_{idx}_{owner_id}")
+        ],
+        [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]
+    ]
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+
+
+async def train_execute_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Ejecuta el entrenamiento del stat elegido"""
+    q = update.callback_query
+    parts = q.data.split("_")
+    # tr_exe_{stat}_{iid}_{idx}_{owner_id}
+    stat = parts[2]
+    iid, idx, owner_id = int(parts[3]), int(parts[4]), int(parts[5])
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No es tu idol.", show_alert=True); return
+
+    r = train_idol(q.from_user.id, iid, stat)
 
     if r == "puntos_insuficientes":
         await q.answer("❌ Necesitas 200 pts.", show_alert=True); return
     if r == "sin_energia":
         await q.answer("😴 Sin energía.", show_alert=True); return
     if r == "ocupada":
-        await q.answer("✈️ Idol en Tour. Espera a que regrese.", show_alert=True); return
+        await q.answer("✈️ Idol en Tour.", show_alert=True); return
     if r == "error" or r == "not_owner":
         await q.answer("❌ Error.", show_alert=True); return
 
     await q.edit_message_text(
-        f"💪 *ENTRENAMIENTO de {r['idol_name']}*\n━━━━━━━━━━━━━━━━━━\n"
-        f"{r['emoji']} {r['stat'].title()} subió `+{r['boost']}` → `{r['new_val']}`",
+        f"💪 *ENTRENAMIENTO: {r['idol_name']}*\n━━━━━━━━━━━━━━━━━━\n"
+        f"{r['emoji']} {r['stat'].title()} subió `+{r['boost']}` → `{r['new_val']}`\n\n"
+        f"💰 Pagaste: `200 pts`\n"
+        f"⚡ Energía: `-15`",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]) ,
         parse_mode="Markdown")
 
