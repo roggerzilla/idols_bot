@@ -73,7 +73,7 @@ async def admin_evento(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     ft = context.args[0].lower() if context.args else None
-    eid = create_and_broadcast_event(context.application, force_type=ft)
+    eid = await create_and_broadcast_event(context.application, force_type=ft)
 
     if eid:
         await update.message.reply_text(f"✅ Evento #{eid} lanzado.")
