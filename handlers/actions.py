@@ -250,12 +250,16 @@ async def train_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if q.from_user.id != owner_id:
         await q.answer("❌ No es tu idol.", show_alert=True); return
 
+    idol = get_idol(iid)
+    if not idol:
+        await q.answer("❌ Error."); return
+
     await q.answer()
     
     text = (
-        "💪 *CENTRO DE ENTRENAMIENTO*\n"
+        f"💪 *CENTRO DE ENTRENAMIENTO: {idol['name']}*\n"
         "━━━━━━━━━━━━━━━━━━\n"
-        "¿En qué área quieres que tu idol mejore hoy?\n\n"
+        f"¿En qué área quieres que *{idol['name']}* mejore hoy?\n\n"
         "🎤 *Vocal:* Mejora el canto y técnica.\n"
         "💃 *Dance:* Mejora el baile y presencia.\n"
         "🎧 *Rap:* Mejora el ritmo y lírica.\n\n"
