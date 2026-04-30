@@ -10,6 +10,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 from config import TELEGRAM_TOKEN
 from handlers.commands import start, profile_handler, back_main, admin_evento, help_command, admin_personal_event
 from handlers.actions import (
+    gacha_handler, idols_handler, comeback_handler,
     train_handler, interact_menu_handler, interact_execute_handler,
     rest_handler, tour_handler, sell_handler, list_sell_handler,
     market_handler, buy_handler, claim_handler, noop_handler, help_points_handler,
