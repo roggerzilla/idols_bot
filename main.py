@@ -96,9 +96,8 @@ def main():
             print("🤖 Bot iniciado. Esperando conexión con Telegram...")
             application.run_polling(
                 drop_pending_updates=True,
-                bootstrap_retries=-1,  # Reintentos infinitos si el bootstrap falla
-                timeout=30,
-                read_timeout=30
+                bootstrap_retries=10,  # Reintentos si el bootstrap falla
+                timeout=30
             )
         except Exception as e:
             print(f"❌ Error de conexión o servidor (Proxy 503?): {e}")
