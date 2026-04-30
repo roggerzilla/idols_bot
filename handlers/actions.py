@@ -128,8 +128,12 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     idx = max(0, min(idx, len(all_idols) - 1))
     idol = all_idols[idx]
 
-    # --- NUEVO: Trigger de Evento Personal (10% chance) ---
-    if random.random() < 0.10:
+    # --- NUEVO: Trigger de Evento Personal (5% chance + Cooldown) ---
+    now = time.time()
+    last_event = context.user_data.get("last_personal_event", 0)
+    
+    if (now - last_event > 30) and random.random() < 0.05:
+        context.user_data["last_personal_event"] = now
         # Buscar una idol que necesite el evento (prioridad moral baja)
         available_idols = [i for i in all_idols if i["status"] == "active" and not i.get("for_sale")]
         
