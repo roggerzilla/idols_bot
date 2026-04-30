@@ -3,6 +3,7 @@ Servicios de economía usando almacenamiento JSON.
 """
 
 import random
+from typing import List
 from datetime import datetime, timedelta
 from storage import (
     get_user, update_user, add_points, deduct_points,
