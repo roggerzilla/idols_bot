@@ -13,11 +13,12 @@ from storage import (
 )
 from services.economy import (
     gacha_pull, perform_comeback, start_world_tour,
-    train_idol, greet_idol, rest_idol, buy_idol, cancel_sale, list_idol_for_sale,
-    train_nsfw, calculate_event_reward, perform_fusion
+    train_idol, rest_idol, buy_idol, cancel_sale, list_idol_for_sale,
+    train_nsfw, calculate_event_reward, perform_fusion,
+    interact_idol, apply_personal_event
 )
 from utils.formatter import format_idol_card, format_market_listing
-from config import RARITY_CONFIG
+from config import RARITY_CONFIG, PERSONAL_EVENTS, INTERACT_OPTIONS
 
 # NSFW Stat Emojis
 NSFW_STAT_EMOJIS = {
@@ -127,6 +128,40 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     idx = max(0, min(idx, len(all_idols) - 1))
     idol = all_idols[idx]
 
+    # --- NUEVO: Trigger de Evento Personal (10% chance) ---
+    if random.random() < 0.10:
+        # Buscar una idol que necesite el evento (prioridad moral baja)
+        available_idols = [i for i in all_idols if i["status"] == "active" and not i.get("for_sale")]
+        
+        if available_idols:
+            # Priorizar las que tienen moral < 50
+            low_morale = [i for i in available_idols if i.get("morale", 100) < 50]
+            target_idol = random.choice(low_morale if low_morale else available_idols)
+            
+            # Encontrar el índice real de la target_idol en la lista completa para el botón "Denegar"
+            target_idx = next((i for i, d in enumerate(all_idols) if d["id"] == target_idol["id"]), idx)
+            
+            event = random.choice(PERSONAL_EVENTS)
+            event_text = (
+                f"⚡ *MENSAJE DE MANAGER*\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"✨ *{target_idol['name'].upper()}* tiene una petición:\n\n"
+                f"*{event['title']}*\n"
+                f"{event['desc']}\n\n"
+                f"💰 Costo: `{event['cost_points']} pts`\n"
+                f"📉 Talento: `-{event['stat_loss']}` (V/D/R)\n"
+                f"❤️ Moral: `+{event['moral_gain']}`\n"
+                f"⚡ Energía: `+{event['energy_gain']}`\n"
+                f"━━━━━━━━━━━━━━━━━━\n"
+                f"¿Permites que se tome este descanso?"
+            )
+            event_kb = [
+                [InlineKeyboardButton("✅ Permitir", callback_data=f"pev_acc_{event['id']}_{target_idol['id']}_{target_idx}_{uid}")],
+                [InlineKeyboardButton("❌ Denegar", callback_data=f"idols_{idx}_{uid}")]
+            ]
+            await q.edit_message_text(event_text, reply_markup=InlineKeyboardMarkup(event_kb), parse_mode="Markdown")
+            return
+
     # Store current idol index
     context.user_data["current_idol_id"] = idol["id"]
     context.user_data["current_idol_idx"] = idx
@@ -146,7 +181,7 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("💿 Comeback", callback_data=f"cb_{idol['id']}_{idx}_{uid}")],
         [InlineKeyboardButton("💪 Entrenar", callback_data=f"tr_{idol['id']}_{idx}_{uid}")],
         [InlineKeyboardButton("🔞 Stats NSFW", callback_data=f"nsfw_info_{idol['id']}_{idx}_{uid}")],
-        [InlineKeyboardButton("💬 Saludar", callback_data=f"gr_{idol['id']}_{idx}_{uid}")],
+        [InlineKeyboardButton("📱 Interactuar", callback_data=f"int_menu_{idol['id']}_{idx}_{uid}")],
         [InlineKeyboardButton("😴 Descansar", callback_data=f"rs_{idol['id']}_{idx}_{uid}")],
         [InlineKeyboardButton("✈️ Tour", callback_data=f"tour_{idol['id']}_{idx}_{uid}")],
         [InlineKeyboardButton("🏷️ Vender", callback_data=f"sell_{idol['id']}_{idx}_{uid}")],
@@ -216,28 +251,100 @@ async def train_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown")
 
 
-# ─── GREET ───
-async def greet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ─── INTERACT ───
+async def interact_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra opciones de interacción (Live / Instagram)"""
     q = update.callback_query
     parts = q.data.split("_")
-    iid, idx = int(parts[1]), int(parts[2])
-    owner_id = int(parts[3]) if len(parts) > 3 else 0
+    iid, idx = int(parts[2]), int(parts[3])
+    owner_id = int(parts[4]) if len(parts) > 4 else 0
 
     if q.from_user.id != owner_id:
-        await q.answer("❌ Este saludo no es tuyo.", show_alert=True)
-        return
+        await q.answer("❌ No es tu idol.", show_alert=True); return
 
-    r = greet_idol(q.from_user.id, iid)
+    await q.answer()
 
+    text = (
+        "📱 *MENÚ DE INTERACCIÓN*\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "Elige cómo quieres que tu idol conecte con sus fans hoy. "
+        "Esto subirá su moral pero consumirá energía.\n\n"
+        "📸 *Instagram:* Menos energía, moral moderada.\n"
+        "🎥 *Live:* Mucha energía, moral alta (¡puede ser viral!)."
+    )
+
+    kb = [
+        [InlineKeyboardButton(INTERACT_OPTIONS["instagram"]["name"], callback_data=f"int_exe_instagram_{iid}_{idx}_{owner_id}")],
+        [InlineKeyboardButton(INTERACT_OPTIONS["live"]["name"], callback_data=f"int_exe_live_{iid}_{idx}_{owner_id}")],
+        [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]
+    ]
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+
+
+async def interact_execute_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Ejecuta la interacción elegida"""
+    q = update.callback_query
+    parts = q.data.split("_")
+    # int_exe_{type}_{iid}_{idx}_{owner_id}
+    itype = parts[2]
+    iid, idx, owner_id = int(parts[3]), int(parts[4]), int(parts[5])
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No es tu idol.", show_alert=True); return
+
+    r = interact_idol(q.from_user.id, iid, itype)
+
+    if r == "sin_energia":
+        await q.answer("😴 Sin energía para esto.", show_alert=True); return
     if r == "ocupada":
-        await q.answer("✈️ Idol en Tour. Espera a que regrese.", show_alert=True); return
+        await q.answer("✈️ Idol ocupada.", show_alert=True); return
     if r == "error" or r == "not_owner":
         await q.answer("❌ Error.", show_alert=True); return
 
     await q.edit_message_text(
-        f"💬 *¡{r['idol_name']} está feliz!*\n❤️ Moral +{r['morale_gain']} → `{r['new_morale']}/100`",
+        f"📱 *INTERACCIÓN: {r['idol_name']}*\n━━━━━━━━━━━━━━━━━━\n"
+        f"{r['text']}\n\n"
+        f"❤️ Moral: `{r['new_morale']}/100`\n"
+        f"⚡ Energía: `{r['new_energy']}/100`",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]),
-        parse_mode="Markdown")
+        parse_mode="Markdown"
+    )
+
+
+# ─── PERSONAL EVENTS ───
+async def personal_event_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Procesa la aceptación de un evento personal"""
+    q = update.callback_query
+    parts = q.data.split("_")
+    # pev_acc_{ev_id}_{iid}_{idx}_{owner_id}
+    ev_id = parts[2]
+    iid, idx, owner_id = int(parts[3]), int(parts[4]), int(parts[5])
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No es tu idol.", show_alert=True); return
+
+    r = apply_personal_event(q.from_user.id, iid, ev_id)
+
+    if r == "puntos_insuficientes":
+        await q.answer("❌ No tienes suficientes puntos.", show_alert=True); return
+    if r == "error":
+        await q.answer("❌ Error al procesar evento.", show_alert=True); return
+
+    result_text = (
+        f"✅ *PERMISO CONCEDIDO: {r['title']}*\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"Has permitido que *{r['idol_name']}* se tome un descanso personal.\n\n"
+        f"💰 Pagaste: `-{r['cost']} pts` en gastos y logística.\n"
+        f"📉 El descanso afectó su práctica: `-{r['stat_loss']}` Talentos.\n"
+        f"💖 Pero su felicidad es máxima: `+{r['moral_gain']} Moral` y `+{r['energy_gain']} Energía`.\n"
+        f"━━━━━━━━━━━━━━━━━━"
+    )
+
+    await q.edit_message_text(
+        result_text,
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]),
+        parse_mode="Markdown"
+    )
 
 
 # ─── REST ───

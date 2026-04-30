@@ -10,12 +10,13 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 from config import TELEGRAM_TOKEN
 from handlers.commands import start, profile_handler, back_main, admin_evento, help_command
 from handlers.actions import (
-    gacha_handler, idols_handler, comeback_handler, train_handler,
-    greet_handler, rest_handler, tour_handler, sell_handler, list_sell_handler,
+    train_handler, interact_menu_handler, interact_execute_handler,
+    rest_handler, tour_handler, sell_handler, list_sell_handler,
     market_handler, buy_handler, claim_handler, noop_handler, help_points_handler,
     select_idol_for_event, use_idol_for_event, nsfw_info_handler, nsfw_train_handler,
     help_game_handler, fusion_menu_handler, fusion_select_slot_handler,
-    fusion_pick_idol_handler, fusion_execute_handler, fusion_clear_handler
+    fusion_pick_idol_handler, fusion_execute_handler, fusion_clear_handler,
+    personal_event_handler
 )
 from services.scheduler_tasks import process_all_maintenances
 from services.events import create_and_broadcast_event
@@ -73,7 +74,9 @@ def create_application():
     application.add_handler(CallbackQueryHandler(idols_handler, pattern=r"^idols_\d+_\d+$"))
     application.add_handler(CallbackQueryHandler(comeback_handler, pattern=r"^cb_\d+_\d+_\d+$"))
     application.add_handler(CallbackQueryHandler(train_handler, pattern=r"^tr_\d+_\d+_\d+$"))
-    application.add_handler(CallbackQueryHandler(greet_handler, pattern=r"^gr_\d+_\d+_\d+$"))
+    application.add_handler(CallbackQueryHandler(interact_menu_handler, pattern=r"^int_menu_"))
+    application.add_handler(CallbackQueryHandler(interact_execute_handler, pattern=r"^int_exe_"))
+    application.add_handler(CallbackQueryHandler(personal_event_handler, pattern=r"^pev_acc_"))
     application.add_handler(CallbackQueryHandler(rest_handler, pattern=r"^rs_\d+_\d+_\d+$"))
     application.add_handler(CallbackQueryHandler(tour_handler, pattern=r"^tour_\d+_\d+_\d+$"))
     application.add_handler(CallbackQueryHandler(sell_handler, pattern=r"^sell_\d+_\d+_\d+$"))

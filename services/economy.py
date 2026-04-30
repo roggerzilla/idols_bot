@@ -12,7 +12,10 @@ from storage import (
     get_event, take_event, calculate_event_reward,
     create_user, get_all_users
 )
-from config import RARITY_CONFIG, COMEBACK_BASE_COST, MAINTENANCE_COST_BASE, TRAIN_COST, TRAIN_NSFW_COST
+from config import (
+    TRAIN_COST, COMEBACK_BASE_COST, TRAIN_NSFW_COST,
+    RARITY_CONFIG, MAINTENANCE_COST_BASE, INTERACT_OPTIONS, PERSONAL_EVENTS
+)
 
 # NSFW Stat Emojis
 NSFW_STAT_EMOJIS = {
@@ -256,8 +259,8 @@ def train_nsfw(user_id: int, idol_id: int, stat_type: str) -> dict | str:
     }
 
 
-def greet_idol(user_id: int, idol_id: int) -> dict | str:
-    """Greet: costs a bit of energy, restores morale"""
+def interact_idol(user_id: int, idol_id: int, interact_type: str) -> dict | str:
+    """Reemplaza a Greet: Hacer Live o Instagram. Consume energía, sube moral random."""
     idols = get_all_idols()
     if str(idol_id) not in idols:
         return "error"
@@ -266,24 +269,88 @@ def greet_idol(user_id: int, idol_id: int) -> dict | str:
     if idol["user_id"] != user_id:
         return "not_owner"
 
-    template = {"name": idol["name"]}
+    opt = INTERACT_OPTIONS.get(interact_type)
+    if not opt:
+        return "error"
+
+    if idol["energy"] < opt["energy_cost"]:
+        return "sin_energia"
 
     # Check busy status
     busy = _check_idol_busy(idol)
     if busy:
         return "ocupada"
 
-    morale_gain = random.randint(10, 25)
-    energy_loss = random.randint(3, 8)
-    idol["morale"] = min(100, idol.get("morale", 100) + morale_gain)
-    idol["energy"] = max(0, idol.get("energy", 100) - energy_loss)
+    # Consumir energía
+    idol["energy"] = max(0, idol["energy"] - opt["energy_cost"])
 
+    # Determinar resultado
+    r = random.random()
+    cumulative = 0
+    chosen_outcome = opt["outcomes"][-1]
+    for outcome in opt["outcomes"]:
+        cumulative += outcome["chance"]
+        if r <= cumulative:
+            chosen_outcome = outcome
+            break
+
+    # Aplicar moral
+    idol["morale"] = min(100, idol.get("morale", 100) + chosen_outcome["moral"])
     update_idol(idol["id"], **{"morale": idol["morale"], "energy": idol["energy"]})
 
     return {
-        "morale_gain": morale_gain,
+        "text": chosen_outcome["text"],
         "new_morale": idol["morale"],
-        "idol_name": template["name"]
+        "new_energy": idol["energy"],
+        "idol_name": idol["name"]
+    }
+
+
+def apply_personal_event(user_id: int, idol_id: int, event_id: str) -> dict | str:
+    """Aplica las consecuencias de aceptar un evento personal (ej. visitar familia)"""
+    idols = get_all_idols()
+    if str(idol_id) not in idols:
+        return "error"
+
+    idol = idols[str(idol_id)]
+    if idol["user_id"] != user_id:
+        return "not_owner"
+
+    event = next((e for e in PERSONAL_EVENTS if e["id"] == event_id), None)
+    if not event:
+        return "error"
+
+    user = get_user(user_id)
+    if user["points"] < event["cost_points"]:
+        return "puntos_insuficientes"
+
+    # Aplicar consecuencias
+    deduct_points(user_id, event["cost_points"])
+    
+    # Perder stats básicos
+    idol["vocal"] = max(0, idol["vocal"] - event["stat_loss"])
+    idol["dance"] = max(0, idol["dance"] - event["stat_loss"])
+    idol["rap"] = max(0, idol["rap"] - event["stat_loss"])
+    
+    # Ganar moral y energía
+    idol["morale"] = min(100, idol.get("morale", 100) + event["moral_gain"])
+    idol["energy"] = min(100, idol.get("energy", 100) + event["energy_gain"])
+    
+    update_idol(idol["id"], **{
+        "vocal": idol["vocal"], 
+        "dance": idol["dance"], 
+        "rap": idol["rap"],
+        "morale": idol["morale"],
+        "energy": idol["energy"]
+    })
+
+    return {
+        "title": event["title"],
+        "cost": event["cost_points"],
+        "stat_loss": event["stat_loss"],
+        "moral_gain": event["moral_gain"],
+        "energy_gain": event["energy_gain"],
+        "idol_name": idol["name"]
     }
 
 
