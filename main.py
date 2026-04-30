@@ -6,6 +6,7 @@ import logging
 import asyncio
 import random
 import time
+import sys
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 from config import TELEGRAM_TOKEN
 from handlers.commands import start, profile_handler, back_main, admin_evento, help_command, admin_personal_event
@@ -25,27 +26,27 @@ from services.events import create_and_broadcast_event
 from storage import init_storage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+# Configuración de logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-
-# Desactivar logs ruidosos de httpx
 logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("telegram.ext.Application").setLevel(logging.ERROR) # Silenciar errores de reconexión ruidosos
 
 async def scheduled_random_event(application):
     """Random chance to trigger event (called every 30 min)"""
     try:
-        # Verificar si el bot está inicializado y activo
-        if not application.running:
+        # Verificar estado de inicialización de forma segura
+        if not application or not hasattr(application, 'running') or not application.running:
             return
-        if random.random() < 0.3:  # 30% chance each run
+            
+        if random.random() < 0.3:
             await create_and_broadcast_event(application)
             print("🎲 Random global event triggered!")
-    except Exception as e:
-        print(f"⚠️ Error en evento programado: {e}")
+    except:
+        pass
 
 async def post_init(application):
     """Inicializa el sistema JSON y scheduler."""
     init_storage()
-    # Usar bot_data para evitar duplicar el scheduler y cumplir con __slots__
     if 'scheduler' not in application.bot_data:
         scheduler = AsyncIOScheduler()
         scheduler.add_job(process_all_maintenances, 'interval', hours=24)
@@ -53,10 +54,6 @@ async def post_init(application):
         scheduler.start()
         application.bot_data['scheduler'] = scheduler
         print("🚀 JSON Storage & Scheduler initialized")
-
-async def error_handler(update, context):
-    """Log the error and send a telegram message to notify the developer."""
-    logging.error(f"Update {update} caused error {context.error}")
 
 def create_application():
     """Crea y configura una nueva instancia de la aplicación"""
@@ -71,13 +68,12 @@ def create_application():
         .build()
     )
 
-    # Registro de comandos
+    # Registro de comandos y handlers (reutilizado)
     application.add_handler(CommandHandler("startidols", start))
     application.add_handler(CommandHandler("evento", admin_evento))
     application.add_handler(CommandHandler("ayuda", help_command))
     application.add_handler(CommandHandler("mievento", admin_personal_event))
 
-    # Registro de callbacks
     application.add_handler(CallbackQueryHandler(profile_handler, pattern="^profile_\\d+$"))
     application.add_handler(CallbackQueryHandler(back_main, pattern="^back_main_\\d+$"))
     application.add_handler(CallbackQueryHandler(gacha_handler, pattern="^gacha_\\d+$"))
@@ -100,41 +96,37 @@ def create_application():
     application.add_handler(CallbackQueryHandler(nsfw_train_handler, pattern=r"^nsfw_tr_"))
     application.add_handler(CallbackQueryHandler(help_points_handler, pattern="^help_pts_\\d+$"))
     application.add_handler(CallbackQueryHandler(help_game_handler, pattern="^help_game_\\d+$"))
-    
-    # Handlers de Fusión
     application.add_handler(CallbackQueryHandler(fusion_menu_handler, pattern="^fusion_main_\\d+$"))
     application.add_handler(CallbackQueryHandler(fusion_select_slot_handler, pattern="^fus_sel_"))
     application.add_handler(CallbackQueryHandler(fusion_pick_idol_handler, pattern="^fus_pick_"))
     application.add_handler(CallbackQueryHandler(fusion_execute_handler, pattern="^fus_exe_"))
     application.add_handler(CallbackQueryHandler(fusion_clear_handler, pattern="^fus_clear_"))
-    
     application.add_handler(CallbackQueryHandler(noop_handler, pattern="^noop$"))
 
-    # Error handler
-    application.add_error_handler(error_handler)
-    
     return application
 
 def main():
     while True:
-        application = create_application()
         try:
+            application = create_application()
             print("🤖 Bot iniciado. Esperando conexión con Telegram...")
-            # En PythonAnywhere, bootstrap_retries alto es vital
-            application.run_polling(
-                drop_pending_updates=True,
-                bootstrap_retries=20,
-                close_loop=False
-            )
+            # run_polling bloquea el hilo. Si falla por red, lanzará excepción al bucle while.
+            application.run_polling(drop_pending_updates=True, bootstrap_retries=10)
         except Exception as e:
-            print(f"❌ Error de ejecución crítico: {e}")
+            err_msg = str(e)
+            if "503" in err_msg or "NetworkError" in err_msg or "ProxyError" in err_msg:
+                print(f"📡 Error de red (Proxy 503): Reintentando en 15s...")
+            else:
+                print(f"❌ Error inesperado: {e}")
+            
+            # Limpieza forzada
             try:
                 if 'scheduler' in application.bot_data:
-                    application.bot_data['scheduler'].shutdown()
+                    application.bot_data['scheduler'].shutdown(wait=False)
             except:
                 pass
-            print("⏳ Reiniciando en 20 segundos...")
-            time.sleep(20)
+            
+            time.sleep(15)
 
 if __name__ == "__main__":
     main()
