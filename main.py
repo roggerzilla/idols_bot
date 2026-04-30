@@ -26,6 +26,13 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 async def scheduled_random_event(application):
     """Random chance to trigger event (called every 30 min)"""
+    # Verificar que el bot esté inicializado antes de intentar usarlo
+    try:
+        if not application.bot:
+            return
+    except:
+        return
+
     if random.random() < 0.3:  # 30% chance each run
         await create_and_broadcast_event(application)
         print("🎲 Random global event triggered!")
