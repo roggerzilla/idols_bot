@@ -189,14 +189,20 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     kb = [
         nav,
-        [InlineKeyboardButton("💿 Comeback", callback_data=f"cb_{idol['id']}_{idx}_{uid}")],
-        [InlineKeyboardButton("💪 Entrenar", callback_data=f"tr_{idol['id']}_{idx}_{uid}")],
-        [InlineKeyboardButton("🔞 Stats NSFW", callback_data=f"nsfw_info_{idol['id']}_{idx}_{uid}")],
-        [InlineKeyboardButton("📱 Interactuar", callback_data=f"int_menu_{idol['id']}_{idx}_{uid}")],
-        [InlineKeyboardButton("😴 Descansar", callback_data=f"rs_{idol['id']}_{idx}_{uid}")],
-        [InlineKeyboardButton("✈️ Tour", callback_data=f"tour_{idol['id']}_{idx}_{uid}")],
-        [InlineKeyboardButton("🏷️ Vender", callback_data=f"sell_{idol['id']}_{idx}_{uid}")],
-        [InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{uid}")],
+        [
+            InlineKeyboardButton("💿 Comeback", callback_data=f"cb_{idol['id']}_{idx}_{uid}"),
+            InlineKeyboardButton("💪 Entrenar", callback_data=f"tr_{idol['id']}_{idx}_{uid}"),
+            InlineKeyboardButton("🔞 Entrenar +18", callback_data=f"nsfw_info_{idol['id']}_{idx}_{uid}")
+        ],
+        [
+            InlineKeyboardButton("📱 Interactuar", callback_data=f"int_menu_{idol['id']}_{idx}_{uid}"),
+            InlineKeyboardButton("😴 Descansar", callback_data=f"rs_{idol['id']}_{idx}_{uid}"),
+            InlineKeyboardButton("✈️ Tour", callback_data=f"tour_{idol['id']}_{idx}_{uid}")
+        ],
+        [
+            InlineKeyboardButton("🏷️ Vender", callback_data=f"sell_{idol['id']}_{idx}_{uid}"),
+            InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{uid}")
+        ],
     ]
 
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
