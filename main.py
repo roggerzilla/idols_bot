@@ -33,12 +33,12 @@ async def scheduled_random_event(application):
 async def post_init(application):
     """Inicializa el sistema JSON y scheduler."""
     init_storage()
-    # Usar un atributo en application para evitar duplicar el scheduler
-    if not hasattr(application, 'scheduler'):
-        application.scheduler = AsyncIOScheduler()
-        application.scheduler.add_job(process_all_maintenances, 'interval', hours=24)
-        application.scheduler.add_job(scheduled_random_event, 'interval', minutes=30, args=[application])
-        application.scheduler.start()
+    # Usar bot_data para evitar duplicar el scheduler y cumplir con __slots__
+    if 'scheduler' not in application.bot_data:
+        application.bot_data['scheduler'] = AsyncIOScheduler()
+        application.bot_data['scheduler'].add_job(process_all_maintenances, 'interval', hours=24)
+        application.bot_data['scheduler'].add_job(scheduled_random_event, 'interval', minutes=30, args=[application])
+        application.bot_data['scheduler'].start()
         print("🚀 JSON Storage & Scheduler initialized")
 
 def create_application():
@@ -105,8 +105,8 @@ def main():
             print(f"❌ Error de ejecución: {e}")
             # Intentar cerrar limpiamente si es posible
             try:
-                if hasattr(application, 'scheduler'):
-                    application.scheduler.shutdown()
+                if 'scheduler' in application.bot_data:
+                    application.bot_data['scheduler'].shutdown()
             except:
                 pass
             print("⏳ Reiniciando aplicación completa en 15 segundos...")
