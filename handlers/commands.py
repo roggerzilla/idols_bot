@@ -5,10 +5,12 @@ Handlers de comandos usando almacenamiento JSON.
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from datetime import datetime
-from storage import get_user, create_user, add_group, get_all_groups
+from storage import get_user, create_user, add_group, get_all_groups, get_user_idols
 from utils.formatter import format_user_profile
-from config import ADMIN_IDS
+from config import ADMIN_IDS, PERSONAL_EVENTS
 from services.events import create_and_broadcast_event
+import random
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -79,6 +81,43 @@ async def admin_evento(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ Evento #{eid} lanzado.")
     else:
         await update.message.reply_text("❌ Error al crear evento.")
+
+
+async def admin_personal_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Fuerza un evento personal para el admin (para pruebas)"""
+    uid = update.effective_user.id
+
+    if ADMIN_IDS and uid not in ADMIN_IDS:
+        await update.message.reply_text("❌ Sin permisos.")
+        return
+
+    idols = get_user_idols(uid)
+    if not idols:
+        await update.message.reply_text("❌ No tienes idols para el evento.")
+        return
+
+    # Usar la idol actual o la primera
+    idx = context.user_data.get("current_idol_idx", 0)
+    if idx >= len(idols): idx = 0
+    idol = idols[idx]
+
+    event = random.choice(PERSONAL_EVENTS)
+    event_text = (
+        f"⚡ *FORZAR EVENTO PERSONAL (Admin)*\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"✨ *{idol['name'].upper()}*\n\n"
+        f"{event['desc']}\n\n"
+        f"💰 Costo: `{event['cost_points']} pts`\n"
+        f"📉 Talento: `-{event['stat_loss']}`\n"
+        f"❤️ Moral: `+{event['moral_gain']}`\n"
+        f"⚡ Energía: `+{event['energy_gain']}`\n"
+        f"━━━━━━━━━━━━━━━━━━"
+    )
+    kb = [
+        [InlineKeyboardButton("✅ Permitir", callback_data=f"pev_acc_{event['id']}_{idol['id']}_{idx}_{uid}")],
+        [InlineKeyboardButton("❌ Denegar", callback_data=f"idols_{idx}_{uid}")]
+    ]
+    await update.message.reply_text(event_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -8,7 +8,7 @@ import random
 import time
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
 from config import TELEGRAM_TOKEN
-from handlers.commands import start, profile_handler, back_main, admin_evento, help_command
+from handlers.commands import start, profile_handler, back_main, admin_evento, help_command, admin_personal_event
 from handlers.actions import (
     train_handler, interact_menu_handler, interact_execute_handler,
     rest_handler, tour_handler, sell_handler, list_sell_handler,
@@ -66,6 +66,7 @@ def create_application():
     application.add_handler(CommandHandler("startidols", start))
     application.add_handler(CommandHandler("evento", admin_evento))
     application.add_handler(CommandHandler("ayuda", help_command))
+    application.add_handler(CommandHandler("mievento", admin_personal_event))
 
     # Registro de callbacks
     application.add_handler(CallbackQueryHandler(profile_handler, pattern="^profile_\\d+$"))
