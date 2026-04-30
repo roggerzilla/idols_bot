@@ -6,6 +6,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 import random
 import asyncio
+import time
+from datetime import datetime
 from storage import (
     get_user, update_user, add_points, deduct_points,
     get_all_idols, get_user_idols, get_idol, update_idol, create_idol, delete_idol,
