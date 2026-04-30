@@ -89,10 +89,13 @@ def format_market_listing(idol, template, owner_name):
     group = idol.get("group_name", "Unknown Group").replace("_", " ")
     rarity = idol.get("rarity", "C")
     era = idol.get("era", "Standard")
+    
+    # Escape underscores in owner_name
+    safe_owner = str(owner_name).replace("_", "\\_")
 
     return (
         f"🏷 *{name}* ({group}) \\[{era}] \\[{rarity}]\n"
         f"🎤 {idol.get('vocal', 0)} | 💃 {idol.get('dance', 0)} | 🎧 {idol.get('rap', 0)}\n"
         f"💰 Precio: {idol.get('sale_price', 0)} pts\n"
-        f"👤 Vendedor: {owner_name}"
+        f"👤 Vendedor: {safe_owner}"
     )

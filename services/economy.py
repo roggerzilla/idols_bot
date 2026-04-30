@@ -470,12 +470,12 @@ def perform_fusion(user_id: int, idol_ids: List[int]) -> dict | str:
     
     for iid in idol_ids:
         if str(iid) not in all_idols:
-            return "not_found"
+            return f"not_found_{iid}"
         idol = all_idols[str(iid)]
         if idol["user_id"] != user_id:
-            return "not_owner"
+            return f"not_owner_{idol['name']}"
         if idol.get("for_sale"):
-            return "idol_in_market"
+            return f"in_market_{idol['name']}"
         fusing_idols.append(idol)
 
     # Calculate Fusion Score

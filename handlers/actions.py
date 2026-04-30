@@ -869,13 +869,20 @@ async def fusion_execute_handler(update: Update, context: ContextTypes.DEFAULT_T
         return
     
     if isinstance(result, str):
-        error_msgs = {
-            "need_3_idols": "Necesitas seleccionar 3 idols.",
-            "not_found": "Una de las idols ya no existe.",
-            "not_owner": "No eres el dueño de estas idols.",
-            "idol_in_market": "Una de las idols está en el mercado."
-        }
-        await q.answer(f"❌ {error_msgs.get(result, result)}", show_alert=True)
+        if result.startswith("not_found"):
+            msg = "Una de las idols seleccionadas ya no existe en tu inventario."
+        elif result.startswith("not_owner"):
+            name = result.replace("not_owner_", "")
+            msg = f"No eres el dueño de {name}."
+        elif result.startswith("in_market"):
+            name = result.replace("in_market_", "")
+            msg = f"La idol {name} está puesta en venta en el mercado. Quítala primero."
+        elif result == "need_3_idols":
+            msg = "Necesitas seleccionar 3 idols para la fusión."
+        else:
+            msg = f"Error: {result}"
+            
+        await q.answer(f"❌ {msg}", show_alert=True)
         # Restaurar el menú para que no se quede en "Procesando"
         await fusion_menu_handler(update, context, manual_owner_id=owner_id)
         return
