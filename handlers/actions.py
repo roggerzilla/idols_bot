@@ -136,13 +136,12 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if (now - last_event > 30) and random.random() < 0.05:
         context.user_data["last_personal_event"] = now
-        # Buscar una idol que necesite el evento (Moral baja o media < 70)
+        # Buscar una idol que necesite el evento (Moral < 50 obligatoriamente)
         available_idols = [i for i in all_idols if i["status"] == "active" and not i.get("for_sale")]
+        needy_idols = [i for i in available_idols if i.get("morale", 100) < 50]
         
-        if available_idols:
-            # Priorizar las que tienen moral < 50
-            needy_idols = [i for i in available_idols if i.get("morale", 100) < 50]
-            target_idol = random.choice(needy_idols if needy_idols else available_idols)
+        if needy_idols:
+            target_idol = random.choice(needy_idols)
             
             event = random.choice(PERSONAL_EVENTS)
             
