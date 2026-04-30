@@ -857,16 +857,23 @@ async def fusion_execute_handler(update: Update, context: ContextTypes.DEFAULT_T
 
     await q.answer("🧪 Fusionando...")
     
-    result = perform_fusion(owner_id, slots)
+    try:
+        result = perform_fusion(owner_id, slots)
+    except Exception as e:
+        import logging
+        logging.error(f"Error en perform_fusion: {e}")
+        await q.answer("❌ Error interno durante la fusión.", show_alert=True); return
     
     if isinstance(result, str):
         await q.answer(f"❌ Error: {result}", show_alert=True); return
 
     # Clear slots
     context.user_data["fusion_slots"] = [None, None, None]
-
+    
     new_idol = result["new_idol"]
-    names = ", ".join(result["fused_names"])
+    # Escapar nombres para evitar errores de Markdown
+    fused_names = [n.replace("_", "\\_").replace("*", "\\*") for n in result["fused_names"]]
+    names_str = ", ".join(fused_names)
 
     # Visuals based on result rarity
     rarity_themes = {
@@ -881,7 +888,7 @@ async def fusion_execute_handler(update: Update, context: ContextTypes.DEFAULT_T
 
     text = (
         f"🧪 *¡FUSIÓN COMPLETADA!*\n"
-        f"Sacrificaste a: _{names}_\n\n"
+        f"Sacrificaste a: _{names_str}_\n\n"
         f"{theme['border']} *{theme['title']}* {theme['border']}\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"✨ *{new_idol['name'].upper()}* ({new_idol.get('era', 'Standard')})\n"

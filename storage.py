@@ -171,7 +171,11 @@ def create_idol(
 ) -> dict:
     """Crea una nueva idol."""
     idols = get_all_idols()
-    idol_id = len(idols) + 1
+    # Usar timestamp para evitar colisiones de IDs al borrar/crear rápidamente
+    import time
+    idol_id = int(time.time() * 1000)
+    while str(idol_id) in idols:
+        idol_id += 1
 
     now = datetime.utcnow()
     expiry = now + timedelta(days=7)
