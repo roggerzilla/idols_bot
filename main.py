@@ -13,6 +13,7 @@ from handlers.commands import start, profile_handler, back_main, admin_evento, h
 from handlers.actions import (
     gacha_handler, idols_handler, comeback_handler,
     train_menu_handler, train_execute_handler, interact_menu_handler, interact_execute_handler,
+    idol_submenu_handler,
     rest_handler, tour_handler, sell_handler, list_sell_handler,
     market_handler, buy_handler, claim_handler, noop_handler, help_points_handler,
     select_idol_for_event, use_idol_for_event, nsfw_info_handler, nsfw_train_handler,
@@ -78,6 +79,7 @@ def create_application():
     application.add_handler(CallbackQueryHandler(back_main, pattern="^back_main_\\d+$"))
     application.add_handler(CallbackQueryHandler(gacha_handler, pattern="^gacha_\\d+$"))
     application.add_handler(CallbackQueryHandler(idols_handler, pattern=r"^idols_\d+_\d+$"))
+    application.add_handler(CallbackQueryHandler(idol_submenu_handler, pattern=r"^ism_"))
     application.add_handler(CallbackQueryHandler(comeback_handler, pattern=r"^cb_\d+_\d+_\d+$"))
     application.add_handler(CallbackQueryHandler(train_menu_handler, pattern=r"^tr_menu_"))
     application.add_handler(CallbackQueryHandler(train_execute_handler, pattern=r"^tr_exe_"))

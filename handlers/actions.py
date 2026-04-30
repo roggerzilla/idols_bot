@@ -190,20 +190,60 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = [
         nav,
         [
-            InlineKeyboardButton("💿 Comeback", callback_data=f"cb_{idol['id']}_{idx}_{uid}"),
-            InlineKeyboardButton("💪 Entrenar", callback_data=f"tr_menu_{idol['id']}_{idx}_{uid}"),
-            InlineKeyboardButton("🔞 Entrenar +18", callback_data=f"nsfw_info_{idol['id']}_{idx}_{uid}")
+            InlineKeyboardButton("📈 Mejorar Stats", callback_data=f"ism_stats_{idol['id']}_{idx}_{uid}"),
+            InlineKeyboardButton("❤️ Moral / Energía", callback_data=f"ism_morale_{idol['id']}_{idx}_{uid}")
         ],
         [
-            InlineKeyboardButton("📱 Interactuar", callback_data=f"int_menu_{idol['id']}_{idx}_{uid}"),
-            InlineKeyboardButton("😴 Descansar", callback_data=f"rs_{idol['id']}_{idx}_{uid}"),
-            InlineKeyboardButton("✈️ Tour", callback_data=f"tour_{idol['id']}_{idx}_{uid}")
+            InlineKeyboardButton("💰 Ganar Dinero", callback_data=f"ism_money_{idol['id']}_{idx}_{uid}"),
+            InlineKeyboardButton("🏷️ Vender", callback_data=f"sell_{idol['id']}_{idx}_{uid}")
         ],
-        [
-            InlineKeyboardButton("🏷️ Vender", callback_data=f"sell_{idol['id']}_{idx}_{uid}"),
-            InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{uid}")
-        ],
+        [InlineKeyboardButton("🔙 Menú Principal", callback_data=f"back_main_{uid}")],
     ]
+
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+
+
+# ─── IDOL SUBMENUS ───
+async def idol_submenu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra los submenús de Mejorar Stats, Moral/Energía o Ganar Dinero"""
+    q = update.callback_query
+    parts = q.data.split("_")
+    # ism_{type}_{iid}_{idx}_{owner_id}
+    stype = parts[1]
+    iid, idx, owner_id = int(parts[2]), int(parts[3]), int(parts[4])
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No es tu idol.", show_alert=True); return
+
+    idol = get_idol(iid)
+    if not idol:
+        await q.answer("❌ Error."); return
+
+    await q.answer()
+
+    if stype == "stats":
+        text = f"📈 *GESTIÓN DE TALENTO: {idol['name']}*\n━━━━━━━━━━━━━━━━━━\nEntrena las habilidades de tu idol para mejorar sus resultados en Comebacks y Eventos."
+        kb = [
+            [InlineKeyboardButton("💪 Entrenar", callback_data=f"tr_menu_{iid}_{idx}_{owner_id}")],
+            [InlineKeyboardButton("🔞 Entrenar +18", callback_data=f"nsfw_info_{iid}_{idx}_{owner_id}")],
+            [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]
+        ]
+    elif stype == "morale":
+        text = f"❤️ *BIENESTAR: {idol['name']}*\n━━━━━━━━━━━━━━━━━━\nMantén la moral alta y la energía llena para que tu idol rinda al máximo."
+        kb = [
+            [InlineKeyboardButton("📱 Interactuar", callback_data=f"int_menu_{iid}_{idx}_{owner_id}")],
+            [InlineKeyboardButton("😴 Descansar", callback_data=f"rs_{iid}_{idx}_{owner_id}")],
+            [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]
+        ]
+    elif stype == "money":
+        text = f"💰 *ECONOMÍA: {idol['name']}*\n━━━━━━━━━━━━━━━━━━\nGenera ingresos mediante lanzamientos musicales o giras mundiales."
+        kb = [
+            [InlineKeyboardButton("💿 Comeback", callback_data=f"cb_{iid}_{idx}_{owner_id}")],
+            [InlineKeyboardButton("✈️ Tour", callback_data=f"tour_{iid}_{idx}_{owner_id}")],
+            [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]
+        ]
+    else:
+        await q.answer("❌ Error."); return
 
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
