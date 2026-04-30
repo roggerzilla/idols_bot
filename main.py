@@ -19,6 +19,7 @@ from handlers.actions import (
     fusion_pick_idol_handler, fusion_execute_handler, fusion_clear_handler,
     personal_event_handler
 )
+from services.economy import process_maintenance
 from services.scheduler_tasks import process_all_maintenances
 from services.events import create_and_broadcast_event
 from storage import init_storage
@@ -26,39 +27,46 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
+# Desactivar logs ruidosos de httpx
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 async def scheduled_random_event(application):
     """Random chance to trigger event (called every 30 min)"""
-    # Verificar que el bot esté inicializado antes de intentar usarlo
     try:
-        if not application.bot:
+        # Verificar si el bot está inicializado y activo
+        if not application.running:
             return
-    except:
-        return
-
-    if random.random() < 0.3:  # 30% chance each run
-        await create_and_broadcast_event(application)
-        print("🎲 Random global event triggered!")
+        if random.random() < 0.3:  # 30% chance each run
+            await create_and_broadcast_event(application)
+            print("🎲 Random global event triggered!")
+    except Exception as e:
+        print(f"⚠️ Error en evento programado: {e}")
 
 async def post_init(application):
     """Inicializa el sistema JSON y scheduler."""
     init_storage()
     # Usar bot_data para evitar duplicar el scheduler y cumplir con __slots__
     if 'scheduler' not in application.bot_data:
-        application.bot_data['scheduler'] = AsyncIOScheduler()
-        application.bot_data['scheduler'].add_job(process_all_maintenances, 'interval', hours=24)
-        application.bot_data['scheduler'].add_job(scheduled_random_event, 'interval', minutes=30, args=[application])
-        application.bot_data['scheduler'].start()
+        scheduler = AsyncIOScheduler()
+        scheduler.add_job(process_all_maintenances, 'interval', hours=24)
+        scheduler.add_job(scheduled_random_event, 'interval', minutes=30, args=[application])
+        scheduler.start()
+        application.bot_data['scheduler'] = scheduler
         print("🚀 JSON Storage & Scheduler initialized")
+
+async def error_handler(update, context):
+    """Log the error and send a telegram message to notify the developer."""
+    logging.error(f"Update {update} caused error {context.error}")
 
 def create_application():
     """Crea y configura una nueva instancia de la aplicación"""
     application = (
         ApplicationBuilder()
         .token(TELEGRAM_TOKEN)
-        .connect_timeout(60.0)
-        .read_timeout(60.0)
-        .write_timeout(60.0)
-        .pool_timeout(60.0)
+        .connect_timeout(30.0)
+        .read_timeout(30.0)
+        .write_timeout(30.0)
+        .pool_timeout(30.0)
         .post_init(post_init)
         .build()
     )
@@ -101,6 +109,10 @@ def create_application():
     application.add_handler(CallbackQueryHandler(fusion_clear_handler, pattern="^fus_clear_"))
     
     application.add_handler(CallbackQueryHandler(noop_handler, pattern="^noop$"))
+
+    # Error handler
+    application.add_error_handler(error_handler)
+    
     return application
 
 def main():
@@ -108,21 +120,21 @@ def main():
         application = create_application()
         try:
             print("🤖 Bot iniciado. Esperando conexión con Telegram...")
+            # En PythonAnywhere, bootstrap_retries alto es vital
             application.run_polling(
                 drop_pending_updates=True,
-                bootstrap_retries=10,
-                timeout=30
+                bootstrap_retries=20,
+                close_loop=False
             )
         except Exception as e:
-            print(f"❌ Error de ejecución: {e}")
-            # Intentar cerrar limpiamente si es posible
+            print(f"❌ Error de ejecución crítico: {e}")
             try:
                 if 'scheduler' in application.bot_data:
                     application.bot_data['scheduler'].shutdown()
             except:
                 pass
-            print("⏳ Reiniciando aplicación completa en 15 segundos...")
-            time.sleep(15)
+            print("⏳ Reiniciando en 20 segundos...")
+            time.sleep(20)
 
 if __name__ == "__main__":
     main()
