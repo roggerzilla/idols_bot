@@ -42,20 +42,24 @@ async def post_init(application):
 
 
 def main():
-    # Simplificamos la creación para evitar errores de inicialización en Python 3.13
+    # Configuración robusta para Python 3.13 y Proxies
     application = (
         ApplicationBuilder()
         .token(TELEGRAM_TOKEN)
+        .connect_timeout(60.0)  # Aumentamos a 60s para el proxy
+        .read_timeout(60.0)
+        .write_timeout(60.0)
+        .pool_timeout(60.0)
         .post_init(post_init)
         .build()
     )
 
-    # Commands
+    # Registro de comandos
     application.add_handler(CommandHandler("startidols", start))
     application.add_handler(CommandHandler("evento", admin_evento))
     application.add_handler(CommandHandler("ayuda", help_command))
 
-    # Callbacks
+    # Registro de callbacks
     application.add_handler(CallbackQueryHandler(profile_handler, pattern="^profile_\\d+$"))
     application.add_handler(CallbackQueryHandler(back_main, pattern="^back_main_\\d+$"))
     application.add_handler(CallbackQueryHandler(gacha_handler, pattern="^gacha_\\d+$"))
@@ -76,15 +80,18 @@ def main():
     application.add_handler(CallbackQueryHandler(nsfw_train_handler, pattern=r"^nsfw_tr_"))
     application.add_handler(CallbackQueryHandler(help_points_handler, pattern="^help_pts_\\d+$"))
     application.add_handler(CallbackQueryHandler(help_game_handler, pattern="^help_game_\\d+$"))
+    
+    # Handlers de Fusión
     application.add_handler(CallbackQueryHandler(fusion_menu_handler, pattern="^fusion_main_\\d+$"))
     application.add_handler(CallbackQueryHandler(fusion_select_slot_handler, pattern="^fus_sel_"))
     application.add_handler(CallbackQueryHandler(fusion_pick_idol_handler, pattern="^fus_pick_"))
     application.add_handler(CallbackQueryHandler(fusion_execute_handler, pattern="^fus_exe_"))
     application.add_handler(CallbackQueryHandler(fusion_clear_handler, pattern="^fus_clear_"))
+    
     application.add_handler(CallbackQueryHandler(noop_handler, pattern="^noop$"))
 
-    print("🤖 Bot running: Gacha, Market, Events, Admin commands active")
-    application.run_polling(drop_pending_updates=True, bootstrap_retries=-1)
+    print("🤖 Bot iniciado. Esperando conexión con Telegram...")
+    application.run_polling(drop_pending_updates=True)
 
 
 if __name__ == "__main__":
