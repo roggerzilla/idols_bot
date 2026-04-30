@@ -90,8 +90,20 @@ def main():
     
     application.add_handler(CallbackQueryHandler(noop_handler, pattern="^noop$"))
 
-    print("🤖 Bot iniciado. Esperando conexión con Telegram...")
-    application.run_polling(drop_pending_updates=True)
+    import time
+    while True:
+        try:
+            print("🤖 Bot iniciado. Esperando conexión con Telegram...")
+            application.run_polling(
+                drop_pending_updates=True,
+                bootstrap_retries=-1,  # Reintentos infinitos si el bootstrap falla
+                timeout=30,
+                read_timeout=30
+            )
+        except Exception as e:
+            print(f"❌ Error de conexión o servidor (Proxy 503?): {e}")
+            print("⏳ Reintentando en 15 segundos...")
+            time.sleep(15)
 
 
 if __name__ == "__main__":
