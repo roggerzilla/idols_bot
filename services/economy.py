@@ -53,6 +53,15 @@ def _check_idol_busy(idol: dict) -> str | None:
 
     if now >= busy_until:
         # Ya terminó el tiempo
+        if status == "world_tour":
+            # Calcular recompensa pasiva por el tour
+            total_stats = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
+            rarity_mult = RARITY_CONFIG.get(idol["rarity"], {"mult": 1.0})["mult"]
+            # Tour de 12h: ~2000-5000 pts base según stats y rareza
+            tour_reward = int((total_stats * 10) * rarity_mult * random.uniform(0.8, 1.2))
+            add_points(idol["user_id"], tour_reward)
+            print(f"✈️ Tour finalizado para {idol['name']}. Recompensa: {tour_reward} pts")
+
         idol["status"] = "active"
         idol["busy_until"] = None
         update_idol(idol["id"], **{"status": "active", "busy_until": None})

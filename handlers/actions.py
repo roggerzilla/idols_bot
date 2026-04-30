@@ -496,13 +496,27 @@ async def use_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"🔞 *{reward_data['idol_name']}* aceptó un patrocinio arriesgado para una marca de bebidas para adultos, terminando con el líquido cayendo sobre su vientre mientras la lameran desde los pechos hasta el coño."
     ]
 
+    # 1. Bloquear el evento para que nadie más lo use
+    if not take_event(eid, q.from_user.id):
+        await q.answer("❌ El evento ya no está disponible.", show_alert=True)
+        return
+
+    # 2. Añadir puntos al CEO
+    add_points(q.from_user.id, reward_data['reward'])
+
+    # 3. Penalizar moral y energía de la idol (Riesgo del evento NSFW)
+    new_morale = max(0, reward_data.get('morale', 100) - 20)
+    new_energy = max(0, reward_data.get('energy', 100) - 15)
+    update_idol(iid, morale=new_morale, energy=new_energy)
+
     story = random.choice(nsfw_variants)
 
     result_text = (f"🔥 *¡CONTRATO FIRMADO!*\n{story}\n\n"
                   f"👤 CEO: *{q.from_user.username}*\n"
-                  f"💰 Ganancia: `+{reward_data['reward']} pts`\n"
-                  f"📊 Base: `{reward_data['base_points']}` × Rareza ({reward_data['rarity']})\n"
-                  f"📈 Bonus Stats: `{reward_data['stat_bonus']}x` (Total: `{reward_data['total_stats']}`)")
+                  f"💰 Ganancia: `+{reward_data['reward']} pts` (Rareza {reward_data['rarity']} + {reward_data['stat_bonus']}x Bonus)\n"
+                  f"📉 Efecto: `-20 Moral` | `-15 Energía`\n"
+                  f"━━━━━━━━━━━━━━━━━━\n"
+                  f"✨ _Tus stats NSFW han multiplicado la ganancia base significativamente._")
 
     await q.edit_message_text(
         result_text,
@@ -601,31 +615,31 @@ async def nsfw_train_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 # ─── CLAIM GLOBAL EVENT ───
 async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handler para reclamar evento global"""
+    """Handler para reclamar evento global (primera fase: selección)"""
     q = update.callback_query
-
     parts = q.data.split("_")
     eid = int(parts[1]) if len(parts) > 1 else 0
 
-    # Check if this is the first click (show selection) or second click (use idol)
-    if "_" in q.data and len(parts) == 3:
-        # Already showing selection, just use the selected idol
-        iid = int(parts[2])
-        await use_idol_for_event(update, context)
+    # Verificar si el evento ya fue tomado
+    event = get_event(eid)
+    if not event or event.get("is_taken"):
+        await q.answer("❌ Este evento ya ha sido reclamado.", show_alert=True)
+        try:
+            await q.edit_message_text("⌛ *EVENTO FINALIZADO*\nEste contrato ya ha sido firmado.", parse_mode="Markdown")
+        except: pass
         return
 
     uid = q.from_user.id
-
-    # Get all idols for this user
     all_idols = get_user_idols(uid)
 
     if not all_idols:
-        await q.answer("❌ Necesitas una idol.", show_alert=True); return
+        await q.answer("❌ No tienes ninguna idol para participar.", show_alert=True)
+        return
 
-    # Show selection screen with first idol highlighted
+    # Mostrar primera idol para seleccionar
     idx = 0
     idol = all_idols[idx]
-
+    
     total_basic = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
     total_nsfw = (idol.get("sensitivity", 50) + idol.get("coqueteo", 50) +
                   idol.get("firmeza_culo", 50) +
