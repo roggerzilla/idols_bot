@@ -84,7 +84,7 @@ def main():
     application.add_handler(CallbackQueryHandler(noop_handler, pattern="^noop$"))
 
     print("🤖 Bot running: Gacha, Market, Events, Admin commands active")
-    application.run_polling(drop_pending_updates=True)
+    application.run_polling(drop_pending_updates=True, bootstrap_retries=-1)
 
 
 if __name__ == "__main__":
