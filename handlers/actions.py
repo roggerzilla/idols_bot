@@ -726,11 +726,14 @@ async def help_game_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ─── FUSION HANDLERS ───
 
-async def fusion_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def fusion_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, manual_owner_id=None):
     """Main fusion menu with 3 slots"""
     q = update.callback_query
-    parts = q.data.split("_")
-    owner_id = int(parts[2]) if len(parts) > 2 else 0
+    if manual_owner_id:
+        owner_id = manual_owner_id
+    else:
+        parts = q.data.split("_")
+        owner_id = int(parts[2]) if len(parts) > 2 else 0
 
     if q.from_user.id != owner_id:
         await q.answer("❌ Este no es tu laboratorio.", show_alert=True)
@@ -836,8 +839,7 @@ async def fusion_pick_idol_handler(update: Update, context: ContextTypes.DEFAULT
     await q.answer(f"✅ Slot {slot_idx+1} asignado.")
     
     # Redirect to menu
-    q.data = f"fusion_main_{owner_id}"
-    await fusion_menu_handler(update, context)
+    await fusion_menu_handler(update, context, manual_owner_id=owner_id)
 
 
 async def fusion_execute_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -899,8 +901,7 @@ async def fusion_clear_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     owner_id = int(q.data.split("_")[2])
     context.user_data["fusion_slots"] = [None, None, None]
     await q.answer("🧹 Slots limpiados.")
-    q.data = f"fusion_main_{owner_id}"
-    await fusion_menu_handler(update, context)
+    await fusion_menu_handler(update, context, manual_owner_id=owner_id)
 
 
 # ─── NOOP (for page indicators) ───
