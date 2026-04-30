@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from storage import (
     get_user, update_user, add_points, deduct_points,
     get_all_idols, get_user_idols, get_idol, update_idol, create_idol, delete_idol,
+    delete_idols_bulk,
     get_event, take_event, calculate_event_reward,
     create_user, get_all_users
 )
@@ -506,9 +507,8 @@ def perform_fusion(user_id: int, idol_ids: List[int]) -> dict | str:
             result_rarity = rarity
             break
 
-    # Delete old idols
-    for iid in idol_ids:
-        delete_idol(iid)
+    # Delete old idols in bulk
+    delete_idols_bulk(idol_ids)
 
     # Pull new idol
     new_idol = gacha_pull_by_rarity(user_id, result_rarity)

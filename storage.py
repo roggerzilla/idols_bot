@@ -251,10 +251,47 @@ def delete_idol(idol_id: int) -> bool:
 
     # Actualizar lista de idols del usuario
     user = get_user(user_id)
-    if user and idol_id in user["idols"]:
-        user["idols"].remove(idol_id)
-        update_user(user_id, **{"idols": user["idols"]})
+    if user:
+        # Manejar tanto int como str en la lista de IDs del usuario
+        original_len = len(user["idols"])
+        user["idols"] = [i for i in user["idols"] if str(i) != str(idol_id)]
+        if len(user["idols"]) != original_len:
+            update_user(user_id, **{"idols": user["idols"]})
 
+    return True
+
+
+def delete_idols_bulk(idol_ids: List[int]) -> bool:
+    """Elimina múltiples idols en una sola operación de guardado."""
+    idols = get_all_idols()
+    users_to_update = {} # user_id -> set of idol_ids to remove
+
+    for iid in idol_ids:
+        key = str(iid)
+        if key in idols:
+            u_id = idols[key]["user_id"]
+            if u_id not in users_to_update:
+                users_to_update[u_id] = []
+            users_to_update[u_id].append(iid)
+            del idols[key]
+
+    if not users_to_update:
+        return False
+
+    save_json(IDOLS_FILE, idols)
+
+    # Actualizar usuarios
+    all_users = get_all_users()
+    for u_id, iids_to_del in users_to_update.items():
+        u_key = str(u_id)
+        if u_key in all_users:
+            user = all_users[u_key]
+            # Convertir todos a str para comparar
+            str_iids_to_del = [str(i) for i in iids_to_del]
+            user["idols"] = [i for i in user["idols"] if str(i) not in str_iids_to_del]
+            all_users[u_key] = user
+    
+    save_json(USERS_FILE, all_users)
     return True
 
 

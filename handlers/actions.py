@@ -855,17 +855,32 @@ async def fusion_execute_handler(update: Update, context: ContextTypes.DEFAULT_T
     if not all(slots):
         await q.answer("❌ Necesitas 3 idols.", show_alert=True); return
 
-    await q.answer("🧪 Fusionando...")
+    # Feedback visual inmediato
+    await q.edit_message_text("🧪 *PROCESANDO FUSIÓN...*\n━━━━━━━━━━━━━━━━━━\n🧬 Combinando secuencias de ADN...\n✨ Estabilizando núcleos de idols...\n⏳ Por favor espera un momento...", parse_mode="Markdown")
     
     try:
         result = perform_fusion(owner_id, slots)
     except Exception as e:
         import logging
         logging.error(f"Error en perform_fusion: {e}")
-        await q.answer("❌ Error interno durante la fusión.", show_alert=True); return
+        await q.answer(f"❌ Error crítico: {e}", show_alert=True)
+        # Restaurar el menú
+        await fusion_menu_handler(update, context, manual_owner_id=owner_id)
+        return
     
     if isinstance(result, str):
-        await q.answer(f"❌ Error: {result}", show_alert=True); return
+        error_msgs = {
+            "need_3_idols": "Necesitas seleccionar 3 idols.",
+            "not_found": "Una de las idols ya no existe.",
+            "not_owner": "No eres el dueño de estas idols.",
+            "idol_in_market": "Una de las idols está en el mercado."
+        }
+        await q.answer(f"❌ {error_msgs.get(result, result)}", show_alert=True)
+        # Restaurar el menú para que no se quede en "Procesando"
+        await fusion_menu_handler(update, context, manual_owner_id=owner_id)
+        return
+
+    await q.answer("🧪 ¡Fusión completada!")
 
     # Clear slots
     context.user_data["fusion_slots"] = [None, None, None]
