@@ -3,8 +3,10 @@ Bot principal usando almacenamiento JSON.
 """
 
 import logging
+import asyncio
+import random
+import time
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
-from telegram.request import HTTPXRequest
 from config import TELEGRAM_TOKEN
 from handlers.commands import start, profile_handler, back_main, admin_evento, help_command
 from handlers.actions import (
@@ -19,10 +21,8 @@ from services.scheduler_tasks import process_all_maintenances
 from services.events import create_and_broadcast_event
 from storage import init_storage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-import random
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-
 
 async def scheduled_random_event(application):
     """Random chance to trigger event (called every 30 min)"""
@@ -30,23 +30,23 @@ async def scheduled_random_event(application):
         await create_and_broadcast_event(application)
         print("🎲 Random global event triggered!")
 
-
 async def post_init(application):
     """Inicializa el sistema JSON y scheduler."""
     init_storage()
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(process_all_maintenances, 'interval', hours=24)
-    scheduler.add_job(scheduled_random_event, 'interval', minutes=30, args=[application])
-    scheduler.start()
-    print("🚀 JSON Storage & Scheduler initialized")
+    # Usar un atributo en application para evitar duplicar el scheduler
+    if not hasattr(application, 'scheduler'):
+        application.scheduler = AsyncIOScheduler()
+        application.scheduler.add_job(process_all_maintenances, 'interval', hours=24)
+        application.scheduler.add_job(scheduled_random_event, 'interval', minutes=30, args=[application])
+        application.scheduler.start()
+        print("🚀 JSON Storage & Scheduler initialized")
 
-
-def main():
-    # Configuración robusta para Python 3.13 y Proxies
+def create_application():
+    """Crea y configura una nueva instancia de la aplicación"""
     application = (
         ApplicationBuilder()
         .token(TELEGRAM_TOKEN)
-        .connect_timeout(60.0)  # Aumentamos a 60s para el proxy
+        .connect_timeout(60.0)
         .read_timeout(60.0)
         .write_timeout(60.0)
         .pool_timeout(60.0)
@@ -89,21 +89,28 @@ def main():
     application.add_handler(CallbackQueryHandler(fusion_clear_handler, pattern="^fus_clear_"))
     
     application.add_handler(CallbackQueryHandler(noop_handler, pattern="^noop$"))
+    return application
 
-    import time
+def main():
     while True:
+        application = create_application()
         try:
             print("🤖 Bot iniciado. Esperando conexión con Telegram...")
             application.run_polling(
                 drop_pending_updates=True,
-                bootstrap_retries=10,  # Reintentos si el bootstrap falla
+                bootstrap_retries=10,
                 timeout=30
             )
         except Exception as e:
-            print(f"❌ Error de conexión o servidor (Proxy 503?): {e}")
-            print("⏳ Reintentando en 15 segundos...")
+            print(f"❌ Error de ejecución: {e}")
+            # Intentar cerrar limpiamente si es posible
+            try:
+                if hasattr(application, 'scheduler'):
+                    application.scheduler.shutdown()
+            except:
+                pass
+            print("⏳ Reiniciando aplicación completa en 15 segundos...")
             time.sleep(15)
-
 
 if __name__ == "__main__":
     main()
