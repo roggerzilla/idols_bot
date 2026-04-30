@@ -136,22 +136,27 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if (now - last_event > 30) and random.random() < 0.05:
         context.user_data["last_personal_event"] = now
-        # Buscar una idol que necesite el evento (prioridad moral baja)
+        # Buscar una idol que necesite el evento (Moral baja o media < 70)
         available_idols = [i for i in all_idols if i["status"] == "active" and not i.get("for_sale")]
         
         if available_idols:
             # Priorizar las que tienen moral < 50
-            low_morale = [i for i in available_idols if i.get("morale", 100) < 50]
-            target_idol = random.choice(low_morale if low_morale else available_idols)
-            
-            # Encontrar el índice real de la target_idol en la lista completa para el botón "Denegar"
-            target_idx = next((i for i, d in enumerate(all_idols) if d["id"] == target_idol["id"]), idx)
+            needy_idols = [i for i in available_idols if i.get("morale", 100) < 50]
+            target_idol = random.choice(needy_idols if needy_idols else available_idols)
             
             event = random.choice(PERSONAL_EVENTS)
+            
+            # Stats para mostrar en el mensaje
+            stats_text = (
+                f"🎤 {target_idol.get('vocal', 0)} | 💃 {target_idol.get('dance', 0)} | 🎧 {target_idol.get('rap', 0)}\n"
+                f"❤️ Moral: `{target_idol.get('morale', 100)}/100` | ⚡ Energía: `{target_idol.get('energy', 100)}/100`"
+            )
+
             event_text = (
                 f"⚡ *MENSAJE DE MANAGER*\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
-                f"✨ *{target_idol['name'].upper()}* tiene una petición:\n\n"
+                f"✨ *{target_idol['name'].upper()}* tiene una petición:\n"
+                f"{stats_text}\n\n"
                 f"*{event['title']}*\n"
                 f"{event['desc']}\n\n"
                 f"💰 Costo: `{event['cost_points']} pts`\n"
@@ -162,7 +167,8 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"¿Permites que se tome este descanso?"
             )
             event_kb = [
-                [InlineKeyboardButton("✅ Permitir", callback_data=f"pev_acc_{event['id']}_{target_idol['id']}_{target_idx}_{uid}")],
+                # Pasamos 'idx' (el original) para volver a donde estaba el usuario
+                [InlineKeyboardButton("✅ Permitir", callback_data=f"pev_acc_{event['id']}_{target_idol['id']}_{idx}_{uid}")],
                 [InlineKeyboardButton("❌ Denegar", callback_data=f"idols_{idx}_{uid}")]
             ]
             await q.edit_message_text(event_text, reply_markup=InlineKeyboardMarkup(event_kb), parse_mode="Markdown")
