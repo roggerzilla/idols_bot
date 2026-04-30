@@ -317,8 +317,11 @@ async def personal_event_handler(update: Update, context: ContextTypes.DEFAULT_T
     q = update.callback_query
     parts = q.data.split("_")
     # pev_acc_{ev_id}_{iid}_{idx}_{owner_id}
-    ev_id = parts[2]
-    iid, idx, owner_id = int(parts[3]), int(parts[4]), int(parts[5])
+    # Como ev_id puede tener guiones bajos, contamos desde el final
+    owner_id = int(parts[-1])
+    idx = int(parts[-2])
+    iid = int(parts[-3])
+    ev_id = "_".join(parts[2:-3])
 
     if q.from_user.id != owner_id:
         await q.answer("❌ No es tu idol.", show_alert=True); return

@@ -96,9 +96,11 @@ async def admin_personal_event(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text("❌ No tienes idols para el evento.")
         return
 
-    # Usar la idol actual o la primera
-    idx = context.user_data.get("current_idol_idx", 0)
-    if idx >= len(idols): idx = 0
+    # Priorizar la que se está viendo, o elegir una al azar si no
+    idx = context.user_data.get("current_idol_idx")
+    if idx is None or idx >= len(idols):
+        idx = random.randint(0, len(idols) - 1)
+    
     idol = idols[idx]
 
     event = random.choice(PERSONAL_EVENTS)
