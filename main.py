@@ -42,16 +42,10 @@ async def post_init(application):
 
 
 def main():
-    builder = ApplicationBuilder().token(TELEGRAM_TOKEN)
-    
-    # PythonAnywhere automatically applies its proxy to httpx via environment variables.
-    # Manual proxy configuration often causes ExtBot initialization failures in PTB v20+.
+    # Simplificamos la creación para evitar errores de inicialización en Python 3.13
     application = (
-        builder
-        .connect_timeout(30.0)
-        .read_timeout(30.0)
-        .write_timeout(30.0)
-        .pool_timeout(30.0)
+        ApplicationBuilder()
+        .token(TELEGRAM_TOKEN)
         .post_init(post_init)
         .build()
     )
@@ -90,7 +84,7 @@ def main():
     application.add_handler(CallbackQueryHandler(noop_handler, pattern="^noop$"))
 
     print("🤖 Bot running: Gacha, Market, Events, Admin commands active")
-    application.run_polling(bootstrap_retries=-1, drop_pending_updates=True)
+    application.run_polling(drop_pending_updates=True)
 
 
 if __name__ == "__main__":
