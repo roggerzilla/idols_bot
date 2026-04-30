@@ -44,7 +44,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("👯 Mis Idols", callback_data=f"idols_0_{user_tg.id}"),
          InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data=f"gacha_{user_tg.id}")],
         [InlineKeyboardButton("🏪 Mercado", callback_data=f"market_0_{user_tg.id}"),
-         InlineKeyboardButton("💰 Ganar Puntos", callback_data=f"help_pts_{user_tg.id}")],
+         InlineKeyboardButton("🧪 Fusión", callback_data=f"fusion_main_{user_tg.id}")],
+        [InlineKeyboardButton("💰 Ganar Puntos", callback_data=f"help_pts_{user_tg.id}")],
     ]
 
     # Retry logic for flaky PythonAnywhere proxy

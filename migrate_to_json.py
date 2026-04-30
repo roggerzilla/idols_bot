@@ -56,7 +56,7 @@ def migrate():
         idols = {}
 
         # Obtener templates para nombre y grupo
-        cursor.execute("SELECT id, name, group_name, rarity, base_vocal, base_dance, base_rap FROM idol_templates")
+        cursor.execute("SELECT id, name, group_name, rarity, era, base_vocal, base_dance, base_rap FROM idol_templates")
         templates = {row[0]: row for row in cursor.fetchall()}
 
         for row in rows:
@@ -65,10 +65,10 @@ def migrate():
 
             tmpl = templates.get(template_id)
             if tmpl:
-                # tmpl tiene 7 valores: id, name, group_name, rarity, base_vocal, base_dance, base_rap
-                _, name, group_name, rarity, base_vocal, base_dance, base_rap = tmpl
+                # tmpl tiene 8 valores: id, name, group_name, rarity, era, base_vocal, base_dance, base_rap
+                _, name, group_name, rarity, era, base_vocal, base_dance, base_rap = tmpl
             else:
-                name, group_name, rarity = "Unknown", "Unknown Group", "C"
+                name, group_name, rarity, era = "Unknown", "Unknown Group", "C", "Standard"
 
             idols[idol_id] = {
                 "id": idol_id,
@@ -77,6 +77,7 @@ def migrate():
                 "name": (name or "").replace("_", " "),
                 "group_name": (group_name or "").replace("_", " "),
                 "rarity": rarity or "C",
+                "era": era or "Standard",
                 "vocal": vocal or base_vocal or 10,
                 "dance": dance or base_dance or 10,
                 "rap": rap or base_rap or 10,

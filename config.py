@@ -29,7 +29,8 @@ RARITY_CONFIG = {
     'B':  {'mult': 1.5,  'chance': 0.35},
     'A':  {'mult': 2.5,  'chance': 0.18},
     'S':  {'mult': 5.0,  'chance': 0.06},
-    'SS': {'mult': 10.0, 'chance': 0.01},
+    'SS': {'mult': 10.0, 'chance': 0.009},
+    'SSS':{'mult': 25.0, 'chance': 0.001},
 }
 
 # NSFW Event Texts (variedad)

@@ -7,7 +7,8 @@ from datetime import datetime, timedelta
 from storage import (
     get_user, update_user, add_points, deduct_points,
     get_all_idols, get_user_idols, get_idol, update_idol, create_idol, delete_idol,
-    get_event, take_event, calculate_event_reward
+    get_event, take_event, calculate_event_reward,
+    create_user, get_all_users
 )
 from config import RARITY_CONFIG, COMEBACK_BASE_COST, MAINTENANCE_COST_BASE, TRAIN_COST, TRAIN_NSFW_COST
 
@@ -325,7 +326,7 @@ def gacha_pull(user_id: int) -> dict | str:
     cumulative = 0
     chosen_rarity = 'C'
 
-    rarity_order = ['C', 'B', 'A', 'S', 'SS']
+    rarity_order = ['C', 'B', 'A', 'S', 'SS', 'SSS']
     for rarity in rarity_order:
         chance = RARITY_CONFIG[rarity]['chance']
         cumulative += chance
@@ -355,12 +356,24 @@ def gacha_pull(user_id: int) -> dict | str:
             ("Kazuha", "LE SSERAFIM"), ("Mina", "TWICE"), ("Jihyo", "TWICE"), ("Haerin", "NewJeans")
         ],
         'SS': [
-            ("Karina", "aespa"), ("Wonyoung", "IVE"), ("Yuna", "ITZY"), ("Chaewon", "LE SSERAFIM"),
-            ("Lisa", "BLACKPINK"), ("Jennie", "BLACKPINK"), ("Momo", "TWICE"), ("Sullyoon", "NMIXX")
+            ("Karina", "aespa", "Standard"), ("Wonyoung", "IVE", "Standard"), ("Yuna", "ITZY", "Standard"), ("Chaewon", "LE SSERAFIM", "Standard"),
+            ("Lisa", "BLACKPINK", "Standard"), ("Jennie", "BLACKPINK", "Standard"), ("Momo", "TWICE", "Standard"), ("Sullyoon", "NMIXX", "Standard")
+        ],
+        'SSS': [
+            ("Karina", "aespa", "Waterbomb"), ("Eunbi", "Soloist", "Waterbomb")
         ]
     }
 
-    name, group = random.choice(template_names[chosen_rarity])
+    # Add default era to other rarities if they don't have it
+    for rty in ['C', 'B', 'A', 'S']:
+        template_names[rty] = [(t[0], t[1], "Standard") for t in template_names[rty]]
+        
+    # Overwrite some specific C rarities for the user request
+    if chosen_rarity == 'C':
+        template_names['C'].append(("Karina", "aespa", "Debut"))
+        template_names['C'].append(("Eunbi", "IZ*ONE", "Produce 48"))
+
+    name, group, era = random.choice(template_names[chosen_rarity])
 
     # Base stats by rarity
     base_stats = {
@@ -368,7 +381,8 @@ def gacha_pull(user_id: int) -> dict | str:
         'B': (20, 20, 20),
         'A': (35, 35, 35),
         'S': (50, 50, 50),
-        'SS': (70, 70, 70)
+        'SS': (70, 70, 70),
+        'SSS': (95, 95, 95)
     }
 
     vocal, dance, rap = base_stats[chosen_rarity]
@@ -381,10 +395,128 @@ def gacha_pull(user_id: int) -> dict | str:
         rarity=chosen_rarity,
         base_vocal=vocal,
         base_dance=dance,
-        base_rap=rap
+        base_rap=rap,
+        era=era
     )
 
     return idol
+
+
+def gacha_pull_by_rarity(user_id: int, chosen_rarity: str) -> dict:
+    """Pulls a random idol of a SPECIFIC rarity for the user"""
+    
+    # Template library (reused from gacha_pull logic)
+    template_names = {
+        'C': [
+            ("Haewon", "NMIXX", "Standard"), ("Bae", "NMIXX", "Standard"), ("Jiwoo", "NMIXX", "Standard"), ("Kyujin", "NMIXX", "Standard"),
+            ("Mashiro", "Kep1er", "Standard"), ("Chaehyun", "Kep1er", "Standard"), ("Hikaru", "Kep1er", "Standard"), ("Huening_Bahiyyih", "Kep1er", "Standard"),
+            ("Isa", "STAYC", "Standard"), ("Seeun", "STAYC", "Standard"), ("Sumin", "STAYC", "Standard"), ("J", "STAYC", "Standard"),
+            ("Belle", "KISS OF LIFE", "Standard"), ("Julie", "KISS OF LIFE", "Standard"), ("Haneul", "KISS OF LIFE", "Standard"),
+            ("Iroha", "ILLIT", "Standard"), ("Wonhee", "ILLIT", "Standard"), ("Minju", "ILLIT", "Standard"), ("Moka", "ILLIT", "Standard"), ("Yunah", "ILLIT", "Standard"),
+            ("Karina", "aespa", "Debut"), ("Eunbi", "IZ*ONE", "Produce 48")
+        ],
+        'B': [
+            ("Minji", "NewJeans", "Standard"), ("Danielle", "NewJeans", "Standard"), ("Liz", "IVE", "Standard"), ("Eunchae", "LE SSERAFIM", "Standard"),
+            ("Xiaoting", "Kep1er", "Standard"), ("Hyein", "NewJeans", "Standard"), ("Lily", "NMIXX", "Standard"), ("Sieun", "STAYC", "Standard"), ("Yoon", "STAYC", "Standard")
+        ],
+        'A': [
+            ("Ryujin", "ITZY", "Standard"), ("Rei", "IVE", "Standard"), ("Yeji", "ITZY", "Standard"), ("Nayeon", "TWICE", "Standard"),
+            ("Sana", "TWICE", "Standard"), ("Natty", "KISS OF LIFE", "Standard"), ("Yunjin", "LE SSERAFIM", "Standard")
+        ],
+        'S': [
+            ("Hanni", "NewJeans", "Standard"), ("Winter", "aespa", "Standard"), ("Sakura", "LE SSERAFIM", "Standard"), ("Yujin", "IVE", "Standard"),
+            ("Kazuha", "LE SSERAFIM", "Standard"), ("Mina", "TWICE", "Standard"), ("Jihyo", "TWICE", "Standard"), ("Haerin", "NewJeans", "Standard")
+        ],
+        'SS': [
+            ("Karina", "aespa", "Standard"), ("Wonyoung", "IVE", "Standard"), ("Yuna", "ITZY", "Standard"), ("Chaewon", "LE SSERAFIM", "Standard"),
+            ("Lisa", "BLACKPINK", "Standard"), ("Jennie", "BLACKPINK", "Standard"), ("Momo", "TWICE", "Standard"), ("Sullyoon", "NMIXX", "Standard")
+        ],
+        'SSS': [
+            ("Karina", "aespa", "Waterbomb"), ("Eunbi", "Soloist", "Waterbomb")
+        ]
+    }
+
+    name, group, era = random.choice(template_names[chosen_rarity])
+
+    base_stats = {
+        'C': (10, 10, 10), 'B': (20, 20, 20), 'A': (35, 35, 35),
+        'S': (50, 50, 50), 'SS': (70, 70, 70), 'SSS': (95, 95, 95)
+    }
+
+    vocal, dance, rap = base_stats[chosen_rarity]
+
+    return create_idol(
+        user_id=user_id,
+        template_id=random.randint(1, 1000),
+        name=name.replace("_", " "),
+        group_name=group,
+        rarity=chosen_rarity,
+        base_vocal=vocal,
+        base_dance=dance,
+        base_rap=rap,
+        era=era
+    )
+
+
+def perform_fusion(user_id: int, idol_ids: List[int]) -> dict | str:
+    """Fuses 3 idols into 1 new idol with better rarity chances"""
+    if len(idol_ids) != 3:
+        return "need_3_idols"
+
+    all_idols = get_all_idols()
+    fusing_idols = []
+    
+    for iid in idol_ids:
+        if str(iid) not in all_idols:
+            return "not_found"
+        idol = all_idols[str(iid)]
+        if idol["user_id"] != user_id:
+            return "not_owner"
+        if idol.get("for_sale"):
+            return "idol_in_market"
+        fusing_idols.append(idol)
+
+    # Calculate Fusion Score
+    # C=1, B=4, A=15, S=50, SS=150, SSS=500
+    rarity_values = {'C': 1, 'B': 4, 'A': 15, 'S': 50, 'SS': 150, 'SSS': 500}
+    total_score = sum(rarity_values[i["rarity"]] for i in fusing_idols)
+
+    # Determine Result Rarity based on Score
+    # 3x C (3 pts) -> C(60%), B(35%), A(5%)
+    # 3x B (12 pts) -> B(50%), A(40%), S(9%), SS(1%)
+    # 3x A (45 pts) -> A(50%), S(40%), SS(9%), SSS(1%)
+    # Mixed: 1S + 2C (50 + 2 = 52 pts) -> Similar to 3x A
+    
+    r = random.random()
+    if total_score < 10: # Tier 3C
+        probs = {'C': 0.60, 'B': 0.95, 'A': 1.0}
+    elif total_score < 30: # Tier 3B
+        probs = {'B': 0.50, 'A': 0.90, 'S': 0.99, 'SS': 1.0}
+    elif total_score < 100: # Tier 3A
+        probs = {'A': 0.50, 'S': 0.90, 'SS': 0.99, 'SSS': 1.0}
+    elif total_score < 300: # Tier 3S
+        probs = {'S': 0.40, 'SS': 0.85, 'SSS': 1.0}
+    else: # Tier 3SS+
+        probs = {'SS': 0.30, 'SSS': 1.0}
+
+    result_rarity = 'C'
+    for rarity, threshold in probs.items():
+        if r <= threshold:
+            result_rarity = rarity
+            break
+
+    # Delete old idols
+    for iid in idol_ids:
+        delete_idol(iid)
+
+    # Pull new idol
+    new_idol = gacha_pull_by_rarity(user_id, result_rarity)
+    
+    return {
+        "new_idol": new_idol,
+        "fused_names": [i["name"] for i in fusing_idols],
+        "result_rarity": result_rarity
+    }
 
 
 def start_world_tour(user_id: int, idol_id: int) -> dict | str:

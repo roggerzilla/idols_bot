@@ -48,6 +48,7 @@ def format_idol_card(idol, template, idx=None, total=None):
     name = idol.get("name", "Unknown").replace("_", " ")
     group = idol.get("group_name", "Unknown Group").replace("_", " ")
     rarity = idol.get("rarity", "C")
+    era = idol.get("era", "Standard")
 
     # NSFW Stats
     sens = idol.get("sensitivity", 50)
@@ -58,7 +59,7 @@ def format_idol_card(idol, template, idx=None, total=None):
 
     return (
         f"{header}"
-        f"🌟 *{name}* ({group}) \\[{rarity}]\n"
+        f"🌟 *{name}* ({group}) \\[{era}] \\[{rarity}]\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"{status_emoji} Estado: {status_text}\n"
         f"🎤 {idol.get('vocal', 0)} | 💃 {idol.get('dance', 0)} | 🎧 {idol.get('rap', 0)}\n"
@@ -87,9 +88,10 @@ def format_market_listing(idol, template, owner_name):
     name = idol.get("name", "Unknown").replace("_", " ")
     group = idol.get("group_name", "Unknown Group").replace("_", " ")
     rarity = idol.get("rarity", "C")
+    era = idol.get("era", "Standard")
 
     return (
-        f"🏷 *{name}* ({group}) \\[{rarity}]\n"
+        f"🏷 *{name}* ({group}) \\[{era}] \\[{rarity}]\n"
         f"🎤 {idol.get('vocal', 0)} | 💃 {idol.get('dance', 0)} | 🎧 {idol.get('rap', 0)}\n"
         f"💰 Precio: {idol.get('sale_price', 0)} pts\n"
         f"👤 Vendedor: {owner_name}"

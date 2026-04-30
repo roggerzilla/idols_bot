@@ -167,6 +167,7 @@ def create_idol(
     base_vocal: int,
     base_dance: int,
     base_rap: int,
+    era: str = "Standard"
 ) -> dict:
     """Crea una nueva idol."""
     idols = get_all_idols()
@@ -182,6 +183,7 @@ def create_idol(
         "name": name,
         "group_name": group_name,
         "rarity": rarity,
+        "era": era,
         "vocal": base_vocal,
         "dance": base_dance,
         "rap": base_rap,
@@ -425,15 +427,15 @@ def migrate_from_sqlite(sqlite_db_path: str = "idols_bot.db") -> bool:
         idols = {}
 
         # Obtener templates para nombre y grupo
-        cursor.execute("SELECT id, name, group_name, rarity, base_vocal, base_dance, base_rap FROM idol_templates")
+        cursor.execute("SELECT id, name, group_name, rarity, era, base_vocal, base_dance, base_rap FROM idol_templates")
         templates = {row[0]: row for row in cursor.fetchall()}
 
         for row in rows:
             idol_id, user_id, template_id, vocal, dance, rap, morale, energy, \
                 status, busy_until, contract_expiry, for_sale, sale_price = row
 
-            tmpl = templates.get(template_id, ("Unknown", "Unknown Group", "C", 10, 10, 10))
-            name, group_name, rarity, base_vocal, base_dance, base_rap = tmpl
+            tmpl = templates.get(template_id, ("Unknown", "Unknown Group", "C", "Standard", 10, 10, 10))
+            name, group_name, rarity, era, base_vocal, base_dance, base_rap = tmpl
 
             idols[idol_id] = {
                 "id": idol_id,
@@ -442,6 +444,7 @@ def migrate_from_sqlite(sqlite_db_path: str = "idols_bot.db") -> bool:
                 "name": name.replace("_", " "),
                 "group_name": group_name.replace("_", " "),
                 "rarity": rarity,
+                "era": era or "Standard",
                 "vocal": vocal or base_vocal,
                 "dance": dance or base_dance,
                 "rap": rap or base_rap,

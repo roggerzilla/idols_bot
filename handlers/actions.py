@@ -14,7 +14,7 @@ from storage import (
 from services.economy import (
     gacha_pull, perform_comeback, start_world_tour,
     train_idol, greet_idol, rest_idol, buy_idol, cancel_sale, list_idol_for_sale,
-    train_nsfw, calculate_event_reward
+    train_nsfw, calculate_event_reward, perform_fusion
 )
 from utils.formatter import format_idol_card, format_market_listing
 from config import RARITY_CONFIG
@@ -62,15 +62,6 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Deduct points
     deduct_points(uid, 500)
 
-    # Animation sequence
-    frames = ["🎰 ✨", "🎰 🌟", "🎰 💎", "🎰 🌈"]
-    for frame in frames:
-        try:
-            await q.edit_message_text(f"GIRANDO RULETA...\n\n{frame}")
-        except:
-            pass
-        await asyncio.sleep(0.3)
-
     # Pull idol
     new_idol = gacha_pull(uid)
 
@@ -85,6 +76,7 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "A":  {"emoji": "⭐⭐⭐",     "border": "🔵", "title": "TALENTO ELITE"},
         "S":  {"emoji": "🌟🌟🌟🌟",    "border": "🟣", "title": "SUPERSTAR"},
         "SS": {"emoji": "💎💎💎💎💎", "border": "👑", "title": "DIOSA LEGENDARIA"},
+        "SSS":{"emoji": "👑👑👑👑👑👑", "border": "✨", "title": "ENTIDAD DIVINA"},
     }
 
     theme = rarity_themes.get(new_idol["rarity"], rarity_themes["C"])
@@ -144,10 +136,10 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     nav = []
     if idx > 0:
-        nav.append(InlineKeyboardButton("◀️", callback_data=f"idols_{idx - 1}"))
+        nav.append(InlineKeyboardButton("◀️", callback_data=f"idols_{idx - 1}_{uid}"))
     nav.append(InlineKeyboardButton(f"{idx+1}/{len(all_idols)}", callback_data="noop"))
     if idx < len(all_idols) - 1:
-        nav.append(InlineKeyboardButton("▶️", callback_data=f"idols_{idx + 1}"))
+        nav.append(InlineKeyboardButton("▶️", callback_data=f"idols_{idx + 1}_{uid}"))
 
     kb = [
         nav,
@@ -444,7 +436,7 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
     card_text = (f"🔞 *SELECCIONA IDOL PARA EVENTO*\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
                 f"✨ *{idol['name'].replace('_', ' ').upper()}* {idol.get('group_name', '')}\n"
-                f"📊 Rareza: {'⭐' * ['C','B','A','S','SS'].index(idol['rarity']) + 1} ({idol['rarity']})\n"
+                f"📊 Rareza: {'⭐' * (['C','B','A','S','SS','SSS'].index(idol['rarity']) + 1)} ({idol['rarity']})\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
                 f"🎤 {idol.get('vocal', 0)} | 💃 {idol.get('dance', 0)} | 🎧 {idol.get('rap', 0)}\n"
                 f"💪 Stats Básicos: `{total_basic}`\n\n"
@@ -642,7 +634,7 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (f"🔞 *SELECCIONA IDOL PARA EVENTO*\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"✨ *{idol['name'].replace('_', ' ').upper()}* {idol.get('group_name', '')}\n"
-            f"📊 Rareza: {'⭐' * ['C','B','A','S','SS'].index(idol['rarity']) + 1} ({idol['rarity']})\n"
+            f"📊 Rareza: {'⭐' * (['C','B','A','S','SS','SSS'].index(idol['rarity']) + 1)} ({idol['rarity']})\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"🎤 {idol.get('vocal', 0)} | 💃 {idol.get('dance', 0)} | 🎧 {idol.get('rap', 0)}\n"
             f"💪 Stats Básicos: `{total_basic}`\n\n"
@@ -731,6 +723,185 @@ async def help_game_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     kb = [[InlineKeyboardButton("🔙 Volver", callback_data=f"back_main_{q.from_user.id}")]]
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+
+# ─── FUSION HANDLERS ───
+
+async def fusion_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Main fusion menu with 3 slots"""
+    q = update.callback_query
+    parts = q.data.split("_")
+    owner_id = int(parts[2]) if len(parts) > 2 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ Este no es tu laboratorio.", show_alert=True)
+        return
+
+    # Initialize fusion slots in user_data if not present
+    if "fusion_slots" not in context.user_data:
+        context.user_data["fusion_slots"] = [None, None, None]
+
+    slots = context.user_data["fusion_slots"]
+    all_idols = get_all_idols()
+    
+    slot_texts = []
+    for i, s_id in enumerate(slots):
+        if s_id and str(s_id) in all_idols:
+            idol = all_idols[str(s_id)]
+            slot_texts.append(f"Slot {i+1}: *{idol['name']}* ({idol['rarity']})")
+        else:
+            slot_texts.append(f"Slot {i+1}: _[Vacío]_")
+
+    text = (
+        "🧪 *CÁMARA DE FUSIÓN*\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "Combina 3 idols para obtener una nueva con mejores probabilidades de rareza alta.\n\n"
+        + "\n".join(slot_texts) +
+        "\n━━━━━━━━━━━━━━━━━━"
+    )
+
+    kb = []
+    for i in range(3):
+        label = "✅ Cambiar" if slots[i] else "➕ Seleccionar"
+        kb.append([InlineKeyboardButton(f"{label} Idol {i+1}", callback_data=f"fus_sel_{i}_{owner_id}")])
+
+    if all(slots):
+        kb.append([InlineKeyboardButton("⚡ FUSIONAR (Acción irreversible)", callback_data=f"fus_exe_{owner_id}")])
+    
+    kb.append([InlineKeyboardButton("🧹 Limpiar todo", callback_data=f"fus_clear_{owner_id}")])
+    kb.append([InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{owner_id}")])
+
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+
+
+async def fusion_select_slot_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show list of idols to pick for a specific slot"""
+    q = update.callback_query
+    parts = q.data.split("_")
+    slot_idx = int(parts[2])
+    owner_id = int(parts[3])
+    page = int(parts[4]) if len(parts) > 4 else 0
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ Error de acceso.", show_alert=True); return
+
+    all_idols = get_user_idols(owner_id)
+    # Filter out idols already in other slots
+    selected_ids = [s for s in context.user_data.get("fusion_slots", []) if s is not None]
+    available = [i for i in all_idols if i["id"] not in selected_ids or i["id"] == context.user_data["fusion_slots"][slot_idx]]
+
+    if not available:
+        await q.answer("❌ No tienes más idols disponibles.", show_alert=True); return
+
+    # Pagination (5 per page)
+    per_page = 5
+    total_pages = (len(available) + per_page - 1) // per_page
+    page = max(0, min(page, total_pages - 1))
+    
+    start_idx = page * per_page
+    end_idx = start_idx + per_page
+    page_idols = available[start_idx:end_idx]
+
+    text = f"🧪 *SELECCIONAR PARA SLOT {slot_idx + 1}*\n(Página {page+1}/{total_pages})"
+    
+    kb = []
+    for idol in page_idols:
+        kb.append([InlineKeyboardButton(f"{idol['name']} ({idol['rarity']}) - {idol.get('era', 'Standard')}", 
+                                         callback_data=f"fus_pick_{slot_idx}_{idol['id']}_{owner_id}")])
+
+    # Navigation
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton("◀️", callback_data=f"fus_sel_{slot_idx}_{owner_id}_{page-1}"))
+    if page < total_pages - 1:
+        nav.append(InlineKeyboardButton("▶️", callback_data=f"fus_sel_{slot_idx}_{owner_id}_{page+1}"))
+    if nav: kb.append(nav)
+
+    kb.append([InlineKeyboardButton("🔙 Volver", callback_data=f"fusion_main_{owner_id}")])
+
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+
+
+async def fusion_pick_idol_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Store picked idol and return to fusion menu"""
+    q = update.callback_query
+    parts = q.data.split("_")
+    slot_idx = int(parts[2])
+    idol_id = int(parts[3])
+    owner_id = int(parts[4])
+
+    if "fusion_slots" not in context.user_data:
+        context.user_data["fusion_slots"] = [None, None, None]
+    
+    context.user_data["fusion_slots"][slot_idx] = idol_id
+    await q.answer(f"✅ Slot {slot_idx+1} asignado.")
+    
+    # Redirect to menu
+    q.data = f"fusion_main_{owner_id}"
+    await fusion_menu_handler(update, context)
+
+
+async def fusion_execute_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Execute the fusion and show result"""
+    q = update.callback_query
+    parts = q.data.split("_")
+    owner_id = int(parts[2])
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ Error.", show_alert=True); return
+
+    slots = context.user_data.get("fusion_slots", [])
+    if not all(slots):
+        await q.answer("❌ Necesitas 3 idols.", show_alert=True); return
+
+    await q.answer("🧪 Fusionando...")
+    
+    result = perform_fusion(owner_id, slots)
+    
+    if isinstance(result, str):
+        await q.answer(f"❌ Error: {result}", show_alert=True); return
+
+    # Clear slots
+    context.user_data["fusion_slots"] = [None, None, None]
+
+    new_idol = result["new_idol"]
+    names = ", ".join(result["fused_names"])
+
+    # Visuals based on result rarity
+    rarity_themes = {
+        "C":  {"emoji": "⭐",       "border": "⚪", "title": "FUSIÓN ÉXITO"},
+        "B":  {"emoji": "⭐⭐",      "border": "🟢", "title": "FUSIÓN SUPERIOR"},
+        "A":  {"emoji": "⭐⭐⭐",     "border": "🔵", "title": "FUSIÓN ELITE"},
+        "S":  {"emoji": "🌟🌟🌟🌟",    "border": "🟣", "title": "FUSIÓN LEGENDARIA"},
+        "SS": {"emoji": "💎💎💎💎💎", "border": "👑", "title": "Diosa Creada"},
+        "SSS":{"emoji": "👑👑👑👑👑👑", "border": "✨", "title": "ENTIDAD SUPREMA"},
+    }
+    theme = rarity_themes.get(new_idol["rarity"], rarity_themes["C"])
+
+    text = (
+        f"🧪 *¡FUSIÓN COMPLETADA!*\n"
+        f"Sacrificaste a: _{names}_\n\n"
+        f"{theme['border']} *{theme['title']}* {theme['border']}\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"✨ *{new_idol['name'].upper()}* ({new_idol.get('era', 'Standard')})\n"
+        f"🏢 {new_idol['group_name']}\n"
+        f"📊 Rareza: {theme['emoji']} ({new_idol['rarity']})\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"🎤 {new_idol['vocal']} | 💃 {new_idol['dance']} | 🎧 {new_idol['rap']}\n"
+    )
+
+    kb = [[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{owner_id}")]]
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+
+
+async def fusion_clear_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Reset the fusion slots"""
+    q = update.callback_query
+    owner_id = int(q.data.split("_")[2])
+    context.user_data["fusion_slots"] = [None, None, None]
+    await q.answer("🧹 Slots limpiados.")
+    q.data = f"fusion_main_{owner_id}"
+    await fusion_menu_handler(update, context)
+
 
 # ─── NOOP (for page indicators) ───
 async def noop_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):

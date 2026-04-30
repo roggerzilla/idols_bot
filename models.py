@@ -25,7 +25,8 @@ class IdolTemplate(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String)
     group_name = Column(String)
-    rarity = Column(String) # C, B, A, S, SS
+    rarity = Column(String) # C, B, A, S, SS, SSS
+    era = Column(String, default="Standard")
     base_vocal = Column(Integer)
     base_dance = Column(Integer)
     base_rap = Column(Integer)
