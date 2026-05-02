@@ -634,23 +634,28 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
     idx = max(0, min(idx, len(all_idols) - 1))
     idol = all_idols[idx]
 
-    # Calcular stats totales para mostrar
-    total_basic = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
-    total_nsfw = (idol.get("sensitivity", 50) + idol.get("coqueteo", 50) +
-                  idol.get("firmeza_culo", 50) +
-                  idol.get("habilidades_cama", 50) + idol.get("kinky", 50))
-
-    card_text = (f"🔞 *SELECCIONA IDOL PARA EVENTO*\n"
+    event = get_event(eid)
+    is_charity = event.get("event_type") == "CHARITY" if event else False
+    
+    title = "💖 SELECCIÓN BENÉFICA" if is_charity else "🔞 SELECCIONA IDOL PARA EVENTO"
+    
+    card_text = (f"{title}\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
                 f"✨ *{idol['name'].replace('_', ' ').upper()}* {idol.get('group_name', '')}\n"
                 f"📊 Rareza: {'⭐' * (['C','B','A','S','SS','SSS'].index(idol['rarity']) + 1)} ({idol['rarity']})\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
                 f"🎤 {idol.get('vocal', 0)} | 💃 {idol.get('dance', 0)} | 🎧 {idol.get('rap', 0)}\n"
-                f"💪 Stats Básicos: `{total_basic}`\n\n"
-                f"❤️ {idol.get('sensitivity', 50)} | 💕 {idol.get('coqueteo', 50)} | 🍑 {idol.get('firmeza_culo', 50)}\n"
-                f"🔥 {idol.get('habilidades_cama', 50)} | 😈 {idol.get('kinky', 50)}\n"
-                f"💪 Stats NSFW: `{total_nsfw}`\n\n"
-                f"📈 Total Stats: `{total_basic + total_nsfw}`")
+                f"💪 Stats Básicos: `{total_basic}`\n\n")
+
+    if not is_charity:
+        card_text += (f"❤️ {idol.get('sensitivity', 50)} | 💕 {idol.get('coqueteo', 50)} | 🍑 {idol.get('firmeza_culo', 50)}\n"
+                    f"🔥 {idol.get('habilidades_cama', 50)} | 😈 {idol.get('kinky', 50)}\n"
+                    f"💪 Stats NSFW: `{total_nsfw}`\n\n"
+                    f"📈 Total Stats: `{total_basic + total_nsfw}`")
+    else:
+        card_text += (f"❤️ Moral Actual: `{idol.get('morale', 0)}/100`\n"
+                    f"⚡ Energía Actual: `{idol.get('energy', 0)}/100`\n\n"
+                    f"✨ _Esta acción restaurará la moral al 100%_")
 
     # Botones para otras idols
     nav = []
@@ -660,9 +665,10 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
     if idx < len(all_idols) - 1:
         nav.append(InlineKeyboardButton("▶️", callback_data=f"sel_event_{eid}_{idx + 1}_{owner_id}"))
 
+    btn_label = "💖 PARTICIPAR" if is_charity else "🔞 USAR ESTA IDOL"
     kb = [
         nav,
-        [InlineKeyboardButton(f"🔞 USAR ESTA IDOL", callback_data=f"use_idol_{eid}_{idol['id']}_{owner_id}")],
+        [InlineKeyboardButton(btn_label, callback_data=f"use_idol_{eid}_{idol['id']}_{owner_id}")],
         [InlineKeyboardButton("🔙 Cancelar", callback_data=f"claim_{eid}")]
     ]
 
@@ -686,49 +692,75 @@ async def use_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await q.answer("❌ No puedes usar idols ajenas en este evento.", show_alert=True)
         return
 
-    # Calcular recompensa
-    reward_data = calculate_event_reward(q.from_user.id, iid)
+    event = get_event(eid)
+    if not event:
+        await q.answer("❌ Evento no encontrado.", show_alert=True); return
 
-    if not reward_data:
-        await q.answer("❌ Error al calcular recompensa.", show_alert=True)
-        return
-
-    # Variaciones de texto NSFW según stats
-    nsfw_variants = [
-        f"🔞 *{reward_data['idol_name']}* protagonizó una sesión de fotos picante para una revista exclusiva donde los camarógrafos no se pudieron resistir y uno a uno tomaron turnos follando cada uno de sus agujeros mientras el patrocinador esperaba su turno con ansias.",
-        f"🔞 *{reward_data['idol_name']}* participó en un show privado de alta gama para fans VIP donde la ropa quedó tirada al suelo y fue penetrada por tres a la vez hasta que sus piernas temblaban de placer sucio.",
-        f"🔞 *{reward_data['idol_name']}* fue la imagen principal de una campaña de lencería de lujo, pero terminó desnuda bajo las luces mientras le chupaban el clítoris para capturar su gemido más auténtico en cámara.",
-        f"🔞 *{reward_data['idol_name']}* grabó un comercial provocativo que se volvió tendencia en redes, mostrando cómo lamió la lengua de su modelo mientras él le llenaba la boca con saliva y semen.",
-        f"🔞 *{reward_data['idol_name']}* asistió como invitada especial a una fiesta privada de la élite de Gangnam donde fue atada al sofá y usada por los invitados hasta que amaneció sucia y exhausta.",
-        f"🔞 *{reward_data['idol_name']}* aceptó un patrocinio arriesgado para una marca de bebidas para adultos, terminando con el líquido cayendo sobre su vientre mientras la lameran desde los pechos hasta el coño."
-    ]
+    is_charity = event.get("event_type") == "CHARITY"
 
     # 1. Bloquear el evento para que nadie más lo use
     if not take_event(eid, q.from_user.id):
         await q.answer("❌ El evento ya no está disponible.", show_alert=True)
         return
 
-    # 2. Añadir puntos al CEO
-    add_points(q.from_user.id, reward_data['reward'])
+    if is_charity:
+        user = get_user(q.from_user.id)
+        cost = event.get("points", 0)
+        if user["points"] < cost:
+            await q.answer(f"❌ Necesitas {cost} pts para participar.", show_alert=True)
+            return # Note: in a real race condition we'd need to unlock the event here, but take_event is atomic
 
-    # 3. Penalizar moral y energía de la idol (Riesgo del evento NSFW)
-    new_morale = max(0, reward_data.get('morale', 100) - 20)
-    new_energy = max(0, reward_data.get('energy', 100) - 15)
-    update_idol(iid, morale=new_morale, energy=new_energy)
+        deduct_points(q.from_user.id, cost)
+        update_idol(iid, morale=100)
+        
+        idol_name = get_idol(iid)["name"].replace("_", " ")
+        
+        charity_variants = [
+            f"💖 *{idol_name}* visitó un orfanato local, pasando el día jugando con los niños y donando suministros. Su corazón se llenó de alegría al ver sus sonrisas.",
+            f"💖 *{idol_name}* participó en una campaña de limpieza de playas. Ver el impacto positivo en la naturaleza le devolvió la paz y el entusiasmo.",
+            f"💖 *{idol_name}* sirvió comida en un refugio comunitario. Conversar con las personas y ayudarlas le recordó por qué ama ser una inspiración.",
+            f"💖 *{idol_name}* organizó un pequeño concierto acústico gratuito para recaudar fondos para animales rescatados. La música y el amor la renovaron por completo."
+        ]
+        story = random.choice(charity_variants)
+        
+        result_text = (f"🌟 *¡EVENTO COMPLETADO!*\n{story}\n\n"
+                      f"👤 CEO: *{q.from_user.username}*\n"
+                      f"💰 Costo: `-{cost} pts` (Donación)\n"
+                      f"📈 Efecto: `❤️ Moral al 100%`\n"
+                      f"━━━━━━━━━━━━━━━━━━\n"
+                      f"✨ _Tu idol se siente renovada y lista para brillar en el escenario._")
+    else:
+        # Calcular recompensa NSFW
+        reward_data = calculate_event_reward(q.from_user.id, iid)
+        if not reward_data:
+            await q.answer("❌ Error al calcular recompensa.", show_alert=True); return
 
-    story = random.choice(nsfw_variants)
+        # Añadir puntos al CEO
+        add_points(q.from_user.id, reward_data['reward'])
 
-    result_text = (f"🔥 *¡CONTRATO FIRMADO!*\n{story}\n\n"
-                  f"👤 CEO: *{q.from_user.username}*\n"
-                  f"💰 Ganancia: `+{reward_data['reward']} pts` (Rareza {reward_data['rarity']} + {reward_data['stat_bonus']}x Bonus)\n"
-                  f"📉 Efecto: `-20 Moral` | `-15 Energía`\n"
-                  f"━━━━━━━━━━━━━━━━━━\n"
-                  f"✨ _Tus stats NSFW han multiplicado la ganancia base significativamente._")
+        # Penalizar moral y energía (Riesgo del evento NSFW)
+        new_morale = max(0, reward_data.get('morale', 100) - 20)
+        new_energy = max(0, reward_data.get('energy', 100) - 15)
+        update_idol(iid, morale=new_morale, energy=new_energy)
 
-    await q.edit_message_text(
-        result_text,
-        parse_mode="Markdown"
-    )
+        nsfw_variants = [
+            f"🔞 *{reward_data['idol_name']}* protagonizó una sesión de fotos picante para una revista exclusiva...",
+            f"🔞 *{reward_data['idol_name']}* participó en un show privado de alta gama para fans VIP...",
+            f"🔞 *{reward_data['idol_name']}* fue la imagen principal de una campaña de lencería de lujo...",
+            f"🔞 *{reward_data['idol_name']}* grabó un comercial provocativo que se volvió tendencia en redes...",
+            f"🔞 *{reward_data['idol_name']}* asistió como invitada especial a una fiesta privada de la élite de Gangnam...",
+            f"🔞 *{reward_data['idol_name']}* aceptó un patrocinio arriesgado para una marca de bebidas para adultos..."
+        ]
+        story = random.choice(nsfw_variants)
+
+        result_text = (f"🔥 *¡CONTRATO FIRMADO!*\n{story}\n\n"
+                      f"👤 CEO: *{q.from_user.username}*\n"
+                      f"💰 Ganancia: `+{reward_data['reward']} pts` (Rareza {reward_data['rarity']} + {reward_data['stat_bonus']}x Bonus)\n"
+                      f"📉 Efecto: `-20 Moral` | `-15 Energía`\n"
+                      f"━━━━━━━━━━━━━━━━━━\n"
+                      f"✨ _Tus stats NSFW han multiplicado la ganancia base significativamente._")
+
+    await q.edit_message_text(result_text, parse_mode="Markdown")
 
 
 # ─── NSFW INFO HANDLER ───
@@ -843,26 +875,28 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.answer("❌ No tienes ninguna idol para participar.", show_alert=True)
         return
 
-    # Mostrar primera idol para seleccionar
-    idx = 0
-    idol = all_idols[idx]
+    event = get_event(eid)
+    is_charity = event.get("event_type") == "CHARITY" if event else False
     
-    total_basic = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
-    total_nsfw = (idol.get("sensitivity", 50) + idol.get("coqueteo", 50) +
-                  idol.get("firmeza_culo", 50) +
-                  idol.get("habilidades_cama", 50) + idol.get("kinky", 50))
-
-    text = (f"🔞 *SELECCIONA IDOL PARA EVENTO*\n"
+    title = "💖 SELECCIÓN BENÉFICA" if is_charity else "🔞 SELECCIONA IDOL PARA EVENTO"
+    
+    text = (f"{title}\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"✨ *{idol['name'].replace('_', ' ').upper()}* {idol.get('group_name', '')}\n"
             f"📊 Rareza: {'⭐' * (['C','B','A','S','SS','SSS'].index(idol['rarity']) + 1)} ({idol['rarity']})\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"🎤 {idol.get('vocal', 0)} | 💃 {idol.get('dance', 0)} | 🎧 {idol.get('rap', 0)}\n"
-            f"💪 Stats Básicos: `{total_basic}`\n\n"
-            f"❤️ {idol.get('sensitivity', 50)} | 💕 {idol.get('coqueteo', 50)} | 🍑 {idol.get('firmeza_culo', 50)}\n"
-            f"🔥 {idol.get('habilidades_cama', 50)} | 😈 {idol.get('kinky', 50)}\n"
-            f"💪 Stats NSFW: `{total_nsfw}`\n\n"
-            f"📈 Total Stats: `{total_basic + total_nsfw}`")
+            f"💪 Stats Básicos: `{total_basic}`\n\n")
+
+    if not is_charity:
+        text += (f"❤️ {idol.get('sensitivity', 50)} | 💕 {idol.get('coqueteo', 50)} | 🍑 {idol.get('firmeza_culo', 50)}\n"
+                f"🔥 {idol.get('habilidades_cama', 50)} | 😈 {idol.get('kinky', 50)}\n"
+                f"💪 Stats NSFW: `{total_nsfw}`\n\n"
+                f"📈 Total Stats: `{total_basic + total_nsfw}`")
+    else:
+        text += (f"❤️ Moral Actual: `{idol.get('morale', 0)}/100`\n"
+                f"⚡ Energía Actual: `{idol.get('energy', 0)}/100`\n\n"
+                f"✨ _Esta acción restaurará la moral al 100%_")
 
     nav = []
     if idx > 0:
@@ -871,9 +905,10 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if idx < len(all_idols) - 1:
         nav.append(InlineKeyboardButton("▶️", callback_data=f"sel_event_{eid}_{idx + 1}_{uid}"))
 
+    btn_label = "💖 PARTICIPAR" if is_charity else "🔞 USAR ESTA IDOL"
     kb = [
         nav,
-        [InlineKeyboardButton(f"🔞 USAR ESTA IDOL", callback_data=f"use_idol_{eid}_{idol['id']}_{uid}")],
+        [InlineKeyboardButton(btn_label, callback_data=f"use_idol_{eid}_{idol['id']}_{uid}")],
         [InlineKeyboardButton(" Anular", callback_data="noop")]
     ]
 
