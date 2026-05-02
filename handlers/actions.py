@@ -82,9 +82,9 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     u = get_user(uid)
     if not u or u.get("points", 0) < 500:
         await q.edit_message_text(
-            f"❌ *PUNTOS INSUFICIENTES*\n\nNecesitas `500 pts` para usar el Gacha.\n💰 Tus puntos: `{u['points'] if u else 0}`",
+            f"❌ <b>PUNTOS INSUFICIENTES</b>\n\nNecesitas <code>500 pts</code> para usar el Gacha.\n💰 Tus puntos: <code>{u['points'] if u else 0}</code>",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data="back_main")]]),
-            parse_mode="Markdown"
+            parse_mode="HTML"
         )
         return
 
@@ -118,14 +118,14 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     u = get_user(uid)
 
     reveal_text = (
-        f"{theme['border']} *{theme['title']}* {theme['border']}\n"
+        f"{theme['border']} <b>{theme['title']}</b> {theme['border']}\n"
         f"━━━━━━━━━━━━━━━━━━\n"
-        f"✨ *{name.upper()}*\n"
+        f"✨ <b>{name.upper()}</b>\n"
         f"🏢 {group}\n"
         f"📊 Rareza: {theme['emoji']} ({new_idol['rarity']})\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"🎤 {new_idol['vocal']} | 💃 {new_idol['dance']} | 🎧 {new_idol['rap']}\n\n"
-        f"💰 Puntos restantes: `{u.get('points', 0)}`"
+        f"💰 Puntos restantes: <code>{u.get('points', 0)}</code>"
     )
 
     await q.edit_message_text(
@@ -133,7 +133,7 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("🎰 Otro Gacha (500 pts)", callback_data=f"gacha_{uid}")],
             [InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{uid}")]
-        ]), parse_mode="Markdown")
+        ]), parse_mode="HTML")
 
 
 # ─── IDOL NAVIGATION (flat, with prev/next) ───
@@ -181,16 +181,16 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             event_text = (
-                f"⚡ *MENSAJE DE MANAGER*\n"
+                f"⚡ <b>MENSAJE DE MANAGER</b>\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
-                f"✨ *{target_idol['name'].upper()}* tiene una petición:\n"
+                f"✨ <b>{target_idol['name'].upper()}</b> tiene una petición:\n"
                 f"{stats_text}\n\n"
-                f"*{event['title']}*\n"
+                f"<b>{event['title']}</b>\n"
                 f"{event['desc']}\n\n"
-                f"💰 Costo: `{event['cost_points']} pts`\n"
-                f"📉 Talento: `-{event['stat_loss']}` (V/D/R)\n"
-                f"❤️ Moral: `+{event['moral_gain']}`\n"
-                f"⚡ Energía: `+{event['energy_gain']}`\n"
+                f"💰 Costo: <code>{event['cost_points']} pts</code>\n"
+                f"📉 Talento: <code>-{event['stat_loss']}</code> (V/D/R)\n"
+                f"❤️ Moral: <code>+{event['moral_gain']}</code>\n"
+                f"⚡ Energía: <code>+{event['energy_gain']}</code>\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
                 f"¿Permites que se tome este descanso?"
             )
@@ -199,7 +199,7 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("✅ Permitir", callback_data=f"pev_acc_{event['id']}_{target_idol['id']}_{idx}_{uid}")],
                 [InlineKeyboardButton("❌ Denegar", callback_data=f"idols_{idx}_{uid}")]
             ]
-            await q.edit_message_text(event_text, reply_markup=InlineKeyboardMarkup(event_kb), parse_mode="Markdown")
+            await q.edit_message_text(event_text, reply_markup=InlineKeyboardMarkup(event_kb), parse_mode="HTML")
             return
 
     # Store current idol index
@@ -229,7 +229,7 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔙 Menú Principal", callback_data=f"back_main_{uid}")],
     ]
 
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 # ─── IDOL SUBMENUS ───
@@ -251,21 +251,21 @@ async def idol_submenu_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     await q.answer()
 
     if stype == "stats":
-        text = f"📈 *GESTIÓN DE TALENTO: {idol['name']}*\n━━━━━━━━━━━━━━━━━━\nEntrena las habilidades de tu idol para mejorar sus resultados en Comebacks y Eventos."
+        text = f"📈 <b>GESTIÓN DE TALENTO: {idol['name']}</b>\n━━━━━━━━━━━━━━━━━━\nEntrena las habilidades de tu idol para mejorar sus resultados en Comebacks y Eventos."
         kb = [
             [InlineKeyboardButton("💪 Entrenar", callback_data=f"tr_menu_{iid}_{idx}_{owner_id}")],
             [InlineKeyboardButton("🔞 Entrenar +18", callback_data=f"nsfw_info_{iid}_{idx}_{owner_id}")],
             [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]
         ]
     elif stype == "morale":
-        text = f"❤️ *BIENESTAR: {idol['name']}*\n━━━━━━━━━━━━━━━━━━\nMantén la moral alta y la energía llena para que tu idol rinda al máximo."
+        text = f"❤️ <b>BIENESTAR: {idol['name']}</b>\n━━━━━━━━━━━━━━━━━━\nMantén la moral alta y la energía llena para que tu idol rinda al máximo."
         kb = [
             [InlineKeyboardButton("📱 Interactuar", callback_data=f"int_menu_{iid}_{idx}_{owner_id}")],
             [InlineKeyboardButton("😴 Descansar", callback_data=f"rs_{iid}_{idx}_{owner_id}")],
             [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]
         ]
     elif stype == "money":
-        text = f"💰 *ECONOMÍA: {idol['name']}*\n━━━━━━━━━━━━━━━━━━\nGenera ingresos mediante lanzamientos musicales o giras mundiales."
+        text = f"💰 <b>ECONOMÍA: {idol['name']}</b>\n━━━━━━━━━━━━━━━━━━\nGenera ingresos mediante lanzamientos musicales o giras mundiales."
         kb = [
             [InlineKeyboardButton("💿 Comeback", callback_data=f"cb_{iid}_{idx}_{owner_id}")],
             [InlineKeyboardButton("✈️ Tour", callback_data=f"tour_{iid}_{idx}_{owner_id}")],
@@ -274,7 +274,7 @@ async def idol_submenu_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     else:
         await q.answer("❌ Error."); return
 
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 # ─── COMEBACK ───
@@ -303,10 +303,10 @@ async def comeback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.answer("❌ Error.", show_alert=True); return
 
     await q.edit_message_text(
-        f"💿 *COMEBACK de {r['idol_name']}*\n━━━━━━━━━━━━━━━━━━\n"
-        f"Resultado: *{r['type']}*\n📈 Score: `{r['score']}`\n💰 Ganancia: `+{r['reward']} pts`",
+        f"💿 <b>COMEBACK de {r['idol_name']}</b>\n━━━━━━━━━━━━━━━━━━\n"
+        f"Resultado: <b>{r['type']}</b>\n📈 Score: <code>{r['score']}</code>\n💰 Ganancia: <code>+{r['reward']} pts</code>",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]) ,
-        parse_mode="Markdown")
+        parse_mode="HTML")
 
 
 # ─── TRAIN ───
@@ -328,13 +328,13 @@ async def train_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await q.answer()
     
     text = (
-        f"💪 *CENTRO DE ENTRENAMIENTO: {idol['name']}*\n"
+        f"💪 <b>CENTRO DE ENTRENAMIENTO: {idol['name']}</b>\n"
         "━━━━━━━━━━━━━━━━━━\n"
-        f"¿En qué área quieres que *{idol['name']}* mejore hoy?\n\n"
-        "🎤 *Vocal:* Mejora el canto y técnica.\n"
-        "💃 *Dance:* Mejora el baile y presencia.\n"
-        "🎧 *Rap:* Mejora el ritmo y lírica.\n\n"
-        "💰 Costo: `200 pts` | ⚡ Energía: `-15`"
+        f"¿En qué área quieres que <b>{idol['name']}</b> mejore hoy?\n\n"
+        "🎤 <b>Vocal:</b> Mejora el canto y técnica.\n"
+        "💃 <b>Dance:</b> Mejora el baile y presencia.\n"
+        "🎧 <b>Rap:</b> Mejora el ritmo y lírica.\n\n"
+        "💰 Costo: <code>200 pts</code> | ⚡ Energía: <code>-15</code>"
     )
 
     kb = [
@@ -345,7 +345,7 @@ async def train_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         ],
         [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]
     ]
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 @handle_telegram_errors
@@ -372,12 +372,12 @@ async def train_execute_handler(update: Update, context: ContextTypes.DEFAULT_TY
         await q.answer("❌ Error.", show_alert=True); return
 
     await q.edit_message_text(
-        f"💪 *ENTRENAMIENTO: {r['idol_name']}*\n━━━━━━━━━━━━━━━━━━\n"
-        f"{r['emoji']} {r['stat'].title()} subió `+{r['boost']}` → `{r['new_val']}`\n\n"
-        f"💰 Pagaste: `200 pts`\n"
-        f"⚡ Energía: `-15`",
+        f"💪 <b>ENTRENAMIENTO: {r['idol_name']}</b>\n━━━━━━━━━━━━━━━━━━\n"
+        f"{r['emoji']} {r['stat'].title()} subió <code>+{r['boost']}</code> → <code>{r['new_val']}</code>\n\n"
+        f"💰 Pagaste: <code>200 pts</code>\n"
+        f"⚡ Energía: <code>-15</code>",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]) ,
-        parse_mode="Markdown")
+        parse_mode="HTML")
 
 
 # ─── INTERACT ───
@@ -395,12 +395,12 @@ async def interact_menu_handler(update: Update, context: ContextTypes.DEFAULT_TY
     await q.answer()
 
     text = (
-        "📱 *MENÚ DE INTERACCIÓN*\n"
+        "📱 <b>MENÚ DE INTERACCIÓN</b>\n"
         "━━━━━━━━━━━━━━━━━━\n"
         "Elige cómo quieres que tu idol conecte con sus fans hoy. "
         "Esto subirá su moral pero consumirá energía.\n\n"
-        "📸 *Instagram:* Menos energía, moral moderada.\n"
-        "🎥 *Live:* Mucha energía, moral alta (¡puede ser viral!)."
+        "📸 <b>Instagram:</b> Menos energía, moral moderada.\n"
+        "🎥 <b>Live:</b> Mucha energía, moral alta (¡puede ser viral!)."
     )
 
     kb = [
@@ -408,7 +408,7 @@ async def interact_menu_handler(update: Update, context: ContextTypes.DEFAULT_TY
         [InlineKeyboardButton(INTERACT_OPTIONS["live"]["name"], callback_data=f"int_exe_live_{iid}_{idx}_{owner_id}")],
         [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]
     ]
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 @handle_telegram_errors
@@ -433,12 +433,12 @@ async def interact_execute_handler(update: Update, context: ContextTypes.DEFAULT
         await q.answer("❌ Error.", show_alert=True); return
 
     await q.edit_message_text(
-        f"📱 *INTERACCIÓN: {r['idol_name']}*\n━━━━━━━━━━━━━━━━━━\n"
+        f"📱 <b>INTERACCIÓN: {r['idol_name']}</b>\n━━━━━━━━━━━━━━━━━━\n"
         f"{r['text']}\n\n"
-        f"❤️ Moral: `{r['new_morale']}/100`\n"
-        f"⚡ Energía: `{r['new_energy']}/100`",
+        f"❤️ Moral: <code>{r['new_morale']}/100</code>\n"
+        f"⚡ Energía: <code>{r['new_energy']}/100</code>",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]),
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 

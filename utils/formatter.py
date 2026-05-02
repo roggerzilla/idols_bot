@@ -3,6 +3,7 @@ Formateadores usando almacenamiento JSON (dicts).
 """
 
 from datetime import datetime
+import html
 
 
 def format_idol_card(idol, template, idx=None, total=None):
@@ -45,10 +46,10 @@ def format_idol_card(idol, template, idx=None, total=None):
     if idol.get("for_sale", False):
         sale_text = f"\n🏷 EN VENTA: {idol.get('sale_price', 0)} pts"
 
-    name = idol.get("name", "Unknown").replace("_", " ")
-    group = idol.get("group_name", "Unknown Group").replace("_", " ")
-    rarity = idol.get("rarity", "C")
-    era = idol.get("era", "Standard").replace("_", " ")
+    name = html.escape(idol.get("name", "Unknown").replace("_", " "))
+    group = html.escape(idol.get("group_name", "Unknown Group").replace("_", " "))
+    rarity = html.escape(idol.get("rarity", "C"))
+    era = html.escape(idol.get("era", "Standard").replace("_", " "))
 
     # NSFW Stats
     sens = idol.get("sensitivity", 50)
@@ -59,7 +60,7 @@ def format_idol_card(idol, template, idx=None, total=None):
 
     return (
         f"{header}"
-        f"🌟 *{name}* ({group}) \\[{era}] \\[{rarity}]\n"
+        f"🌟 <b>{name}</b> ({group}) [{era}] [{rarity}]\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"{status_emoji} Estado: {status_text}\n"
         f"🎤 {idol.get('vocal', 0)} | 💃 {idol.get('dance', 0)} | 🎧 {idol.get('rap', 0)}\n"
@@ -73,30 +74,30 @@ def format_idol_card(idol, template, idx=None, total=None):
 
 def format_user_profile(user, idols_count):
     """Format user profile - works with dict"""
-    safe_username = user.get('username', 'Unknown').replace("_", " ")
+    safe_username = html.escape(user.get('username', 'Unknown').replace("_", " "))
     return (
-        f"👤 *CEO: {safe_username}*\n"
+        f"👤 <b>CEO: {safe_username}</b>\n"
         f"━━━━━━━━━━━━━━━━━━\n"
-        f"💰 Puntos: `{user.get('points', 0)}`\n"
-        f"🏆 Victorias: `{user.get('wins', 0)}`\n"
-        f"👯 Idols: `{idols_count}`\n"
+        f"💰 Puntos: <code>{user.get('points', 0)}</code>\n"
+        f"🏆 Victorias: <code>{user.get('wins', 0)}</code>\n"
+        f"👯 Idols: <code>{idols_count}</code>\n"
         f"━━━━━━━━━━━━━━━━━━"
     )
 
 
 def format_market_listing(idol, template, owner_name):
     """Format market listing - works with dicts"""
-    name = idol.get("name", "Unknown").replace("_", " ")
-    group = idol.get("group_name", "Unknown Group").replace("_", " ")
-    rarity = idol.get("rarity", "C")
-    era = idol.get("era", "Standard").replace("_", " ")
+    name = html.escape(idol.get("name", "Unknown").replace("_", " "))
+    group = html.escape(idol.get("group_name", "Unknown Group").replace("_", " "))
+    rarity = html.escape(idol.get("rarity", "C"))
+    era = html.escape(idol.get("era", "Standard").replace("_", " "))
     
     # Escape underscores in owner_name
-    safe_owner = str(owner_name).replace("_", "\\_")
+    safe_owner = html.escape(str(owner_name).replace("_", " "))
 
     return (
-        f"🏷 *{name}* ({group}) \\[{era}] \\[{rarity}]\n"
+        f"🏷 <b>{name}</b> ({group}) [{era}] [{rarity}]\n"
         f"🎤 {idol.get('vocal', 0)} | 💃 {idol.get('dance', 0)} | 🎧 {idol.get('rap', 0)}\n"
-        f"💰 Precio: {idol.get('sale_price', 0)} pts\n"
+        f"💰 Precio: <b>{idol.get('sale_price', 0)} pts</b>\n"
         f"👤 Vendedor: {safe_owner}"
     )
