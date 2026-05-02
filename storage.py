@@ -372,7 +372,7 @@ def add_group(chat_id: int, title: str = "") -> Optional[dict]:
         "added_at": now.isoformat()
     }
     save_json(GROUPS_FILE, groups)
-    return groups[chat_id]
+    return groups[str(chat_id)]
 
 
 def get_group(chat_id: int) -> Optional[dict]:
