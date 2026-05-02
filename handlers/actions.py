@@ -21,6 +21,33 @@ from services.economy import (
 )
 from utils.formatter import format_idol_card, format_market_listing
 from config import RARITY_CONFIG, PERSONAL_EVENTS, INTERACT_OPTIONS
+from telegram.error import RetryAfter, BadRequest
+
+def handle_telegram_errors(func):
+    """Decorador para silenciar errores de Flood Control y BadRequest en ediciones."""
+    async def wrapper(update, context, *args, **kwargs):
+        try:
+            return await func(update, context, *args, **kwargs)
+        except RetryAfter as e:
+            # Si es un Flood control, intentamos al menos responder al query para que no se quede cargando
+            try:
+                if update.callback_query:
+                    await update.callback_query.answer(f"⏳ Límite de Telegram. Reintenta en {e.retry_after}s.", show_alert=True)
+            except: pass
+            return
+        except BadRequest as e:
+            if "Message is not modified" in str(e):
+                return
+            if "Can't parse entities" in str(e):
+                # Si falla el parseo, intentamos enviarlo sin parse_mode como último recurso
+                try:
+                    if update.callback_query:
+                        await update.callback_query.edit_message_text(
+                            update.callback_query.message.text + "\n(Error de formato, contacta admin)"
+                        )
+                except: pass
+            raise e
+    return wrapper
 
 # NSFW Stat Emojis
 NSFW_STAT_EMOJIS = {
@@ -40,6 +67,7 @@ NSFW_STAT_NAMES = {
 }
 
 # ─── GACHA ───
+@handle_telegram_errors
 async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
@@ -109,6 +137,7 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ─── IDOL NAVIGATION (flat, with prev/next) ───
+@handle_telegram_errors
 async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
@@ -249,6 +278,7 @@ async def idol_submenu_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 # ─── COMEBACK ───
+@handle_telegram_errors
 async def comeback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
@@ -280,6 +310,7 @@ async def comeback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ─── TRAIN ───
+@handle_telegram_errors
 async def train_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra opciones de entrenamiento (Vocal, Dance, Rap)"""
     q = update.callback_query
@@ -317,6 +348,7 @@ async def train_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
 
+@handle_telegram_errors
 async def train_execute_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Ejecuta el entrenamiento del stat elegido"""
     q = update.callback_query
@@ -349,6 +381,7 @@ async def train_execute_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 # ─── INTERACT ───
+@handle_telegram_errors
 async def interact_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra opciones de interacción (Live / Instagram)"""
     q = update.callback_query
@@ -378,6 +411,7 @@ async def interact_menu_handler(update: Update, context: ContextTypes.DEFAULT_TY
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
 
+@handle_telegram_errors
 async def interact_execute_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Ejecuta la interacción elegida"""
     q = update.callback_query
@@ -409,6 +443,7 @@ async def interact_execute_handler(update: Update, context: ContextTypes.DEFAULT
 
 
 # ─── PERSONAL EVENTS ───
+@handle_telegram_errors
 async def personal_event_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Procesa la aceptación de un evento personal"""
     q = update.callback_query
@@ -448,6 +483,7 @@ async def personal_event_handler(update: Update, context: ContextTypes.DEFAULT_T
 
 
 # ─── REST ───
+@handle_telegram_errors
 async def rest_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
@@ -475,6 +511,7 @@ async def rest_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ─── TOUR ───
+@handle_telegram_errors
 async def tour_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
@@ -502,6 +539,7 @@ async def tour_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ─── SELL (put on market) ───
+@handle_telegram_errors
 async def sell_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
@@ -524,6 +562,7 @@ async def sell_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
 
+@handle_telegram_errors
 async def list_sell_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
@@ -547,6 +586,7 @@ async def list_sell_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ─── MARKET ───
+@handle_telegram_errors
 async def market_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
@@ -587,6 +627,7 @@ async def market_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
 
+@handle_telegram_errors
 async def buy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     iid = int(q.data.split("_")[1])
@@ -606,6 +647,7 @@ async def buy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ─── SELECT IDOL FOR EVENT ───
+@handle_telegram_errors
 async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra lista de idols para seleccionar en evento NSFW"""
     q = update.callback_query
@@ -680,6 +722,7 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
 
 
 # ─── USE IDOL FOR EVENT ───
+@handle_telegram_errors
 async def use_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Ejecuta evento NSFW con la idol seleccionada"""
     q = update.callback_query
@@ -764,6 +807,7 @@ async def use_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 # ─── NSFW INFO HANDLER ───
+@handle_telegram_errors
 async def nsfw_info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler para el botón Stats NSFW en la tarjeta de idol"""
     q = update.callback_query
@@ -818,6 +862,7 @@ async def nsfw_info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ─── NSFW TRAINING ───
+@handle_telegram_errors
 async def nsfw_train_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Entrena un stat NSFW específico"""
     q = update.callback_query
@@ -853,6 +898,7 @@ async def nsfw_train_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 # ─── CLAIM GLOBAL EVENT ───
+@handle_telegram_errors
 async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler para reclamar evento global (primera fase: selección)"""
     q = update.callback_query
@@ -920,6 +966,7 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ─── HELP POINTS ───
+@handle_telegram_errors
 async def help_points_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
@@ -945,6 +992,7 @@ async def help_points_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
 
+@handle_telegram_errors
 async def help_game_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra la guía completa y detallada del juego"""
     q = update.callback_query
@@ -981,7 +1029,7 @@ async def help_game_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
 # ─── FUSION HANDLERS ───
-
+@handle_telegram_errors
 async def fusion_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, manual_owner_id=None):
     """Main fusion menu with 3 slots"""
     q = update.callback_query
@@ -1032,6 +1080,7 @@ async def fusion_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
 
+@handle_telegram_errors
 async def fusion_select_slot_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show list of idols to pick for a specific slot"""
     q = update.callback_query
@@ -1080,6 +1129,7 @@ async def fusion_select_slot_handler(update: Update, context: ContextTypes.DEFAU
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
 
+@handle_telegram_errors
 async def fusion_pick_idol_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Store picked idol and return to fusion menu"""
     q = update.callback_query
@@ -1098,6 +1148,7 @@ async def fusion_pick_idol_handler(update: Update, context: ContextTypes.DEFAULT
     await fusion_menu_handler(update, context, manual_owner_id=owner_id)
 
 
+@handle_telegram_errors
 async def fusion_execute_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Execute the fusion and show result"""
     q = update.callback_query
@@ -1180,6 +1231,7 @@ async def fusion_execute_handler(update: Update, context: ContextTypes.DEFAULT_T
     await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
 
 
+@handle_telegram_errors
 async def fusion_clear_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Reset the fusion slots"""
     q = update.callback_query

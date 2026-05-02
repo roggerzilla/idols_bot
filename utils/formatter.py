@@ -48,7 +48,7 @@ def format_idol_card(idol, template, idx=None, total=None):
     name = idol.get("name", "Unknown").replace("_", " ")
     group = idol.get("group_name", "Unknown Group").replace("_", " ")
     rarity = idol.get("rarity", "C")
-    era = idol.get("era", "Standard")
+    era = idol.get("era", "Standard").replace("_", " ")
 
     # NSFW Stats
     sens = idol.get("sensitivity", 50)
@@ -73,8 +73,9 @@ def format_idol_card(idol, template, idx=None, total=None):
 
 def format_user_profile(user, idols_count):
     """Format user profile - works with dict"""
+    safe_username = user.get('username', 'Unknown').replace("_", " ")
     return (
-        f"👤 *CEO: {user.get('username', 'Unknown')}*\n"
+        f"👤 *CEO: {safe_username}*\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"💰 Puntos: `{user.get('points', 0)}`\n"
         f"🏆 Victorias: `{user.get('wins', 0)}`\n"
@@ -88,7 +89,7 @@ def format_market_listing(idol, template, owner_name):
     name = idol.get("name", "Unknown").replace("_", " ")
     group = idol.get("group_name", "Unknown Group").replace("_", " ")
     rarity = idol.get("rarity", "C")
-    era = idol.get("era", "Standard")
+    era = idol.get("era", "Standard").replace("_", " ")
     
     # Escape underscores in owner_name
     safe_owner = str(owner_name).replace("_", "\\_")
