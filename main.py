@@ -33,17 +33,17 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("telegram.ext.Application").setLevel(logging.ERROR) # Silenciar errores de reconexión ruidosos
 
 async def scheduled_random_event(application):
-    """Random chance to trigger event (called every 30 min)"""
+    """Chance aleatoria de lanzar un evento (cada 30 min)"""
     try:
-        # Verificar estado de inicialización de forma segura
-        if not application or not hasattr(application, 'running') or not application.running:
+        # Usamos una forma más segura de verificar si el bot está listo
+        if not application:
             return
             
         if random.random() < 0.3:
             await create_and_broadcast_event(application)
-            print("🎲 Random global event triggered!")
-    except:
-        pass
+            logging.info("🎲 Evento global aleatorio lanzado!")
+    except Exception as e:
+        logging.error(f"Error en scheduled_random_event: {e}")
 
 async def post_init(application):
     """Inicializa el sistema JSON y scheduler."""
@@ -110,26 +110,25 @@ def create_application():
 
 def main():
     while True:
+        application = None
         try:
             application = create_application()
-            print("🤖 Bot iniciado. Esperando conexión con Telegram...")
-            # run_polling bloquea el hilo. Si falla por red, lanzará excepción al bucle while.
-            application.run_polling(drop_pending_updates=True, bootstrap_retries=10)
+            logging.info("🤖 Bot iniciado. Esperando conexión...")
+            # drop_pending_updates=True evita que el bot responda a mensajes viejos al arrancar
+            application.run_polling(drop_pending_updates=True)
         except Exception as e:
-            err_msg = str(e)
-            if "503" in err_msg or "NetworkError" in err_msg or "ProxyError" in err_msg:
-                print(f"📡 Error de red (Proxy 503): Reintentando en 15s...")
-            else:
-                print(f"❌ Error inesperado: {e}")
+            logging.error(f"❌ Error crítico en el bucle principal: {e}")
             
-            # Limpieza forzada
-            try:
-                if 'scheduler' in application.bot_data:
-                    application.bot_data['scheduler'].shutdown(wait=False)
-            except:
-                pass
+            # Limpieza profunda antes de reintentar
+            if application:
+                try:
+                    if 'scheduler' in application.bot_data:
+                        application.bot_data['scheduler'].shutdown(wait=False)
+                except:
+                    pass
             
-            time.sleep(15)
+            logging.info("📡 Reintentando en 20 segundos...")
+            time.sleep(20)
 
 if __name__ == "__main__":
     main()
