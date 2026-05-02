@@ -20,8 +20,8 @@ async def seed():
             IdolTemplate(name="Eunbi", group_name="Soloist", rarity="SSS", era="Waterbomb", base_vocal=96, base_dance=98, base_rap=80),
 
             # --- BETA TEST ONLY (No Gacha) ---
-            IdolTemplate(name="Wendy", group_name="Red Velvet", rarity="SS", era="GOT THE BEAT", base_vocal=98, base_dance=75, base_rap=62),
-            IdolTemplate(name="Taeyeon", group_name="Girls' Generation", rarity="SS", era="GOT THE BEAT", base_vocal=99, base_dance=80, base_rap=56),
+            IdolTemplate(name="Wendy", group_name="Red Velvet", rarity="SS", era="GOT THE BEAT", base_vocal=98, base_dance=75, base_rap=62, can_gacha=False),
+            IdolTemplate(name="Taeyeon", group_name="Girls' Generation", rarity="SS", era="GOT THE BEAT", base_vocal=99, base_dance=80, base_rap=56, can_gacha=False),
 
             # =========================================================
 # POWER SYSTEM:

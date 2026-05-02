@@ -30,6 +30,7 @@ class IdolTemplate(Base):
     base_vocal = Column(Integer)
     base_dance = Column(Integer)
     base_rap = Column(Integer)
+    can_gacha = Column(Boolean, default=True)
 
 class UserIdol(Base):
     """Specific idol instance owned by a user"""

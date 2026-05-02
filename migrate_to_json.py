@@ -46,6 +46,30 @@ def migrate():
         save_json(USERS_FILE, users)
         print(f"✅ Migrados {len(users)} usuarios")
 
+        # === MIGRAR TEMPLATES ===
+        cursor.execute("SELECT id, name, group_name, rarity, era, base_vocal, base_dance, base_rap, can_gacha FROM idol_templates")
+        rows = cursor.fetchall()
+        templates_json = {}
+        templates = {} # Para uso interno en la migración de idols
+        for row in rows:
+            tid, name, group, rarity, era, bv, bd, br, can_gacha = row
+            templates_json[tid] = {
+                "id": tid,
+                "name": name,
+                "group_name": group,
+                "rarity": rarity,
+                "era": era,
+                "base_vocal": bv,
+                "base_dance": bd,
+                "base_rap": br,
+                "can_gacha": bool(can_gacha)
+            }
+            templates[tid] = row # Guardamos la tupla original para compatibilidad abajo
+
+        from storage import TEMPLATES_FILE
+        save_json(TEMPLATES_FILE, templates_json)
+        print(f"✅ Migrados {len(templates_json)} templates")
+
         # === MIGRAR IDOLS ===
         cursor.execute("""
             SELECT id, user_id, template_id, vocal, dance, rap, morale, energy,
@@ -54,10 +78,6 @@ def migrate():
         """)
         rows = cursor.fetchall()
         idols = {}
-
-        # Obtener templates para nombre y grupo
-        cursor.execute("SELECT id, name, group_name, rarity, era, base_vocal, base_dance, base_rap FROM idol_templates")
-        templates = {row[0]: row for row in cursor.fetchall()}
 
         for row in rows:
             idol_id, user_id, template_id, vocal, dance, rap, morale, energy, \

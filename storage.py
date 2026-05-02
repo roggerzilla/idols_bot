@@ -13,6 +13,7 @@ from pathlib import Path
 DATA_DIR = Path(__file__).parent / "data"
 USERS_FILE = DATA_DIR / "users.json"
 IDOLS_FILE = DATA_DIR / "idols.json"
+TEMPLATES_FILE = DATA_DIR / "templates.json"
 EVENTS_FILE = DATA_DIR / "events.json"
 GROUPS_FILE = DATA_DIR / "groups.json"
 
@@ -561,6 +562,19 @@ def migrate_from_sqlite(sqlite_db_path: str = "idols_bot.db") -> bool:
         return False
 
 
+# ─── TEMPLATES ──────────────────────────────────────────────────
+
+def get_all_templates() -> Dict[str, dict]:
+    """Obtiene todas las plantillas de idols."""
+    return load_json(TEMPLATES_FILE, {})
+
+
+def get_template(template_id: int) -> Optional[dict]:
+    """Obtiene una plantilla por ID."""
+    templates = get_all_templates()
+    return templates.get(str(template_id))
+
+
 # ─── INIT ──────────────────────────────────────────────────────
 
 def init_storage():
@@ -569,6 +583,8 @@ def init_storage():
         save_json(USERS_FILE, {})
     if not IDOLS_FILE.exists():
         save_json(IDOLS_FILE, {})
+    if not TEMPLATES_FILE.exists():
+        save_json(TEMPLATES_FILE, {})
     if not EVENTS_FILE.exists():
         save_json(EVENTS_FILE, {})
     if not GROUPS_FILE.exists():

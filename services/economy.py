@@ -10,7 +10,7 @@ from storage import (
     get_all_idols, get_user_idols, get_idol, update_idol, create_idol, delete_idol,
     delete_idols_bulk,
     get_event, take_event, calculate_event_reward,
-    create_user, get_all_users
+    create_user, get_all_users, get_all_templates
 )
 from config import (
     TRAIN_COST, COMEBACK_BASE_COST, TRAIN_NSFW_COST,
@@ -400,115 +400,49 @@ def rest_idol(user_id: int, idol_id: int) -> dict | str:
     }
 
 
-def gacha_pull(user_id: int) -> dict | str:
+def gacha_pull(user_id: int, force_rarity: str = None) -> dict | str:
     """Pulls a random idol for the user"""
     r = random.random()
     cumulative = 0
-    chosen_rarity = 'C'
+    chosen_rarity = force_rarity if force_rarity else 'C'
 
-    rarity_order = ['C', 'B', 'A', 'S', 'SS', 'SSS']
-    for rarity in rarity_order:
-        chance = RARITY_CONFIG[rarity]['chance']
-        cumulative += chance
-        if r <= cumulative:
-            chosen_rarity = rarity
-            break
+    if not force_rarity:
+        rarity_order = ['C', 'B', 'A', 'S', 'SS', 'SSS']
+        for rarity in rarity_order:
+            chance = RARITY_CONFIG[rarity]['chance']
+            cumulative += chance
+            if r <= cumulative:
+                chosen_rarity = rarity
+                break
 
-    # Get real idol templates from seed_db.py logic
-    template_names = {
-        'C': [
-            ("Tzuyu", "TWICE", "TT"), ("Momo", "TWICE", "TT"), ("Nayeon", "TWICE", "Knock Knock"),
-            ("Jeongyeon", "TWICE", "Knock Knock"), ("Chaeyoung", "TWICE", "Signal"), ("Jeongyeon", "TWICE", "Signal"),
-            ("Tzuyu", "TWICE", "Heart Shaker"), ("Momo", "TWICE", "Heart Shaker"), ("Momo", "TWICE", "What Is Love?"),
-            ("Jeongyeon", "TWICE", "What Is Love?"), ("Momo", "TWICE", "Fancy"), ("Jeongyeon", "TWICE", "Fancy"),
-            ("Winter", "aespa", "Debut"), ("Karina", "aespa", "Next Level"), ("Giselle", "aespa", "Savage"),
-            ("Ningning", "aespa", "Girls"), ("Ningning", "aespa", "Spicy"), ("Karina", "aespa", "Supernova / Armageddon"),
-            ("Giselle", "aespa", "Rich Man"), ("Chaewon", "LE SSERAFIM", "Fearless"), ("Yunjin", "LE SSERAFIM", "Antifragile"),
-            ("Chaewon", "LE SSERAFIM", "Unforgiven"), ("Eunchae", "LE SSERAFIM", "Easy / Crazy")
-        ],
-        'B': [
-            ("Nayeon", "TWICE", "TT"), ("Jihyo", "TWICE", "TT"), ("Mina", "TWICE", "Knock Knock"),
-            ("Tzuyu", "TWICE", "Knock Knock"), ("Jihyo", "TWICE", "Signal"), ("Momo", "TWICE", "Signal"),
-            ("Nayeon", "TWICE", "Heart Shaker"), ("Jihyo", "TWICE", "Heart Shaker"), ("Jihyo", "TWICE", "What Is Love?"),
-            ("Chaeyoung", "TWICE", "What Is Love?"), ("Nayeon", "TWICE", "Fancy"), ("Dahyun", "TWICE", "Fancy"),
-            ("Sakura", "IZ*ONE", "Debut"), ("Wonyoung", "IZ*ONE", "Debut"), ("Chaewon", "IZ*ONE", "Debut"),
-            ("Yena", "IZ*ONE", "HEARTIZ"), ("Yuri", "IZ*ONE", "HEARTIZ"), ("Wonyoung", "IZ*ONE", "HEARTIZ"),
-            ("Chaewon", "IZ*ONE", "HEARTIZ"), ("Yena", "IZ*ONE", "BLOOMIZ"), ("Wonyoung", "IZ*ONE", "BLOOMIZ"),
-            ("Chaewon", "IZ*ONE", "BLOOMIZ"), ("Chaeyeon", "IZ*ONE", "BLOOMIZ"), ("Yuri", "IZ*ONE", "Oneiric Diary"),
-            ("Yena", "IZ*ONE", "Oneiric Diary"), ("Wonyoung", "IZ*ONE", "Oneiric Diary"), ("Chaewon", "IZ*ONE", "Oneiric Diary"),
-            ("Yuri", "IZ*ONE", "Oneiric Theater"), ("Yena", "IZ*ONE", "Oneiric Theater"), ("Wonyoung", "IZ*ONE", "Oneiric Theater"),
-            ("Chaeyeon", "IZ*ONE", "Oneiric Theater"), ("Sakura", "LE SSERAFIM", "Fearless"), ("Eunchae", "LE SSERAFIM", "Antifragile"),
-            ("Kazuha", "LE SSERAFIM", "Unforgiven"), ("Yunjin", "LE SSERAFIM", "Easy / Crazy")
-        ],
-        'A': [
-            ("Mina", "TWICE", "TT"), ("Chaeyoung", "TWICE", "TT"), ("Sana", "TWICE", "Knock Knock"),
-            ("Dahyun", "TWICE", "Knock Knock"), ("Tzuyu", "TWICE", "Signal"), ("Nayeon", "TWICE", "Signal"),
-            ("Dahyun", "TWICE", "Heart Shaker"), ("Chaeyoung", "TWICE", "Heart Shaker"), ("Sana", "TWICE", "What Is Love?"),
-            ("Dahyun", "TWICE", "What Is Love?"), ("Jihyo", "TWICE", "Fancy"), ("Chaeyoung", "TWICE", "Fancy"),
-            ("Minju", "IZ*ONE", "Debut"), ("Yena", "IZ*ONE", "Debut"), ("Yuri", "IZ*ONE", "Debut"),
-            ("Sakura", "IZ*ONE", "HEARTIZ"), ("Minju", "IZ*ONE", "HEARTIZ"), ("Chaeyeon", "IZ*ONE", "HEARTIZ"),
-            ("Sakura", "IZ*ONE", "BLOOMIZ"), ("Hyewon", "IZ*ONE", "BLOOMIZ"), ("Yuri", "IZ*ONE", "BLOOMIZ"),
-            ("Hyewon", "IZ*ONE", "Oneiric Diary"), ("Sakura", "IZ*ONE", "Oneiric Diary"), ("Chaeyeon", "IZ*ONE", "Oneiric Diary"),
-            ("Hitomi", "IZ*ONE", "Oneiric Theater"), ("Hyewon", "IZ*ONE", "Oneiric Theater"), ("Chaewon", "IZ*ONE", "Oneiric Theater"),
-            ("Karina", "aespa", "Debut"), ("Winter", "aespa", "Next Level"), ("Ningning", "aespa", "Savage"),
-            ("Giselle", "aespa", "Girls"), ("Winter", "aespa", "Spicy"), ("Giselle", "aespa", "Supernova / Armageddon"),
-            ("Ningning", "aespa", "Rich Man"), ("Yunjin", "LE SSERAFIM", "Fearless"), ("Sakura", "LE SSERAFIM", "Antifragile"),
-            ("Eunchae", "LE SSERAFIM", "Unforgiven"), ("Kazuha", "LE SSERAFIM", "Easy / Crazy")
-        ],
-        'S': [
-            ("Sana", "TWICE", "TT"), ("Dahyun", "TWICE", "TT"), ("Chaeyoung", "TWICE", "Knock Knock"),
-            ("Jihyo", "TWICE", "Knock Knock"), ("Mina", "TWICE", "Signal"), ("Sana", "TWICE", "Signal"),
-            ("Sana", "TWICE", "Heart Shaker"), ("Mina", "TWICE", "Heart Shaker"), ("Nayeon", "TWICE", "What Is Love?"),
-            ("Tzuyu", "TWICE", "What Is Love?"), ("Mina", "TWICE", "Fancy"), ("Sana", "TWICE", "Fancy"),
-            ("Nako", "IZ*ONE", "Debut"), ("Hitomi", "IZ*ONE", "Debut"), ("Eunbi", "IZ*ONE", "Debut"),
-            ("Hyewon", "IZ*ONE", "HEARTIZ"), ("Hitomi", "IZ*ONE", "HEARTIZ"), ("Eunbi", "IZ*ONE", "HEARTIZ"),
-            ("Nako", "IZ*ONE", "BLOOMIZ"), ("Hitomi", "IZ*ONE", "BLOOMIZ"), ("Eunbi", "IZ*ONE", "BLOOMIZ"),
-            ("Minju", "IZ*ONE", "Oneiric Diary"), ("Nako", "IZ*ONE", "Oneiric Diary"), ("Eunbi", "IZ*ONE", "Oneiric Diary"),
-            ("Minju", "IZ*ONE", "Oneiric Theater"), ("Eunbi", "IZ*ONE", "Oneiric Theater"), ("Nako", "IZ*ONE", "Oneiric Theater"),
-            ("Ningning", "aespa", "Debut"), ("Giselle", "aespa", "Next Level"), ("Karina", "aespa", "Savage"),
-            ("Winter", "aespa", "Girls"), ("Karina", "aespa", "Spicy"), ("Winter", "aespa", "Supernova / Armageddon"),
-            ("Karina", "aespa", "Rich Man"), ("Kazuha", "LE SSERAFIM", "Fearless"), ("Chaewon", "LE SSERAFIM", "Antifragile"),
-            ("Sakura", "LE SSERAFIM", "Unforgiven"), ("Chaewon", "LE SSERAFIM", "Easy / Crazy")
-        ],
-        'SS': [
-            ("Jeongyeon", "TWICE", "TT"), ("Momo", "TWICE", "Knock Knock"), ("Dahyun", "TWICE", "Signal"),
-            ("Jeongyeon", "TWICE", "Heart Shaker"), ("Mina", "TWICE", "What Is Love?"), ("Tzuyu", "TWICE", "Fancy"),
-            ("Hyewon", "IZ*ONE", "Debut"), ("Nako", "IZ*ONE", "HEARTIZ"), ("Minju", "IZ*ONE", "BLOOMIZ"),
-            ("Hitomi", "IZ*ONE", "Oneiric Diary"), ("Sakura", "IZ*ONE", "Oneiric Theater"), ("Giselle", "aespa", "Debut"),
-            ("Ningning", "aespa", "Next Level"), ("Winter", "aespa", "Savage"), ("Karina", "aespa", "Girls"),
-            ("Giselle", "aespa", "Spicy"), ("Ningning", "aespa", "Supernova / Armageddon"), ("Winter", "aespa", "Rich Man"),
-            ("Eunchae", "LE SSERAFIM", "Fearless"), ("Kazuha", "LE SSERAFIM", "Antifragile"), ("Yunjin", "LE SSERAFIM", "Unforgiven"),
-            ("Sakura", "LE SSERAFIM", "Easy / Crazy")
-        ],
-        'SSS': [
-            ("Karina", "aespa", "Waterbomb"), ("Eunbi", "Soloist", "Waterbomb")
-        ]
-    }
-
-    # Add default era to other rarities if they don't have it
-    # Note: Our list already includes eras for most, so we handle tuples of 2 or 3
+    # Load templates from JSON (Source of Truth)
+    all_templates = get_all_templates()
     
+    # Filter templates by rarity and can_gacha
+    eligible_templates = []
+    for tid, t in all_templates.items():
+        if t.get("can_gacha", True) and t.get("rarity") == chosen_rarity:
+            eligible_templates.append(t)
+
+    # Fallback if no templates found for that rarity
+    if not eligible_templates:
+        return "error_no_templates"
+
     # Select random template
-    template_data = random.choice(template_names[chosen_rarity])
-    name = template_data[0]
-    group = template_data[1]
-    era = template_data[2] if len(template_data) > 2 else "Standard"
+    template = random.choice(eligible_templates)
+    name = template["name"]
+    group = template["group_name"]
+    era = template.get("era", "Standard")
+    template_id = template["id"]
 
-    # Base stats by rarity
-    base_stats = {
-        'C': (10, 10, 10),
-        'B': (20, 20, 20),
-        'A': (35, 35, 35),
-        'S': (50, 50, 50),
-        'SS': (70, 70, 70),
-        'SSS': (95, 95, 95)
-    }
-
-    vocal, dance, rap = base_stats[chosen_rarity]
+    # Base stats by rarity (using stats from template if available, or defaults)
+    vocal = template.get("base_vocal", 10)
+    dance = template.get("base_dance", 10)
+    rap = template.get("base_rap", 10)
 
     idol = create_idol(
         user_id=user_id,
-        template_id=random.randint(1, 1000),
+        template_id=template_id,
         name=name.replace("_", " "),
         group_name=group,
         rarity=chosen_rarity,
@@ -523,98 +457,8 @@ def gacha_pull(user_id: int) -> dict | str:
 
 def gacha_pull_by_rarity(user_id: int, chosen_rarity: str) -> dict:
     """Pulls a random idol of a SPECIFIC rarity for the user"""
-    
-    # Template library (reused from gacha_pull logic)
-    template_names = {
-        'C': [
-            ("Tzuyu", "TWICE", "TT"), ("Momo", "TWICE", "TT"), ("Nayeon", "TWICE", "Knock Knock"),
-            ("Jeongyeon", "TWICE", "Knock Knock"), ("Chaeyoung", "TWICE", "Signal"), ("Jeongyeon", "TWICE", "Signal"),
-            ("Tzuyu", "TWICE", "Heart Shaker"), ("Momo", "TWICE", "Heart Shaker"), ("Momo", "TWICE", "What Is Love?"),
-            ("Jeongyeon", "TWICE", "What Is Love?"), ("Momo", "TWICE", "Fancy"), ("Jeongyeon", "TWICE", "Fancy"),
-            ("Winter", "aespa", "Debut"), ("Karina", "aespa", "Next Level"), ("Giselle", "aespa", "Savage"),
-            ("Ningning", "aespa", "Girls"), ("Ningning", "aespa", "Spicy"), ("Karina", "aespa", "Supernova / Armageddon"),
-            ("Giselle", "aespa", "Rich Man"), ("Chaewon", "LE SSERAFIM", "Fearless"), ("Yunjin", "LE SSERAFIM", "Antifragile"),
-            ("Chaewon", "LE SSERAFIM", "Unforgiven"), ("Eunchae", "LE SSERAFIM", "Easy / Crazy")
-        ],
-        'B': [
-            ("Nayeon", "TWICE", "TT"), ("Jihyo", "TWICE", "TT"), ("Mina", "TWICE", "Knock Knock"),
-            ("Tzuyu", "TWICE", "Knock Knock"), ("Jihyo", "TWICE", "Signal"), ("Momo", "TWICE", "Signal"),
-            ("Nayeon", "TWICE", "Heart Shaker"), ("Jihyo", "TWICE", "Heart Shaker"), ("Jihyo", "TWICE", "What Is Love?"),
-            ("Chaeyoung", "TWICE", "What Is Love?"), ("Nayeon", "TWICE", "Fancy"), ("Dahyun", "TWICE", "Fancy"),
-            ("Sakura", "IZ*ONE", "Debut"), ("Wonyoung", "IZ*ONE", "Debut"), ("Chaewon", "IZ*ONE", "Debut"),
-            ("Yena", "IZ*ONE", "HEARTIZ"), ("Yuri", "IZ*ONE", "HEARTIZ"), ("Wonyoung", "IZ*ONE", "HEARTIZ"),
-            ("Chaewon", "IZ*ONE", "HEARTIZ"), ("Yena", "IZ*ONE", "BLOOMIZ"), ("Wonyoung", "IZ*ONE", "BLOOMIZ"),
-            ("Chaewon", "IZ*ONE", "BLOOMIZ"), ("Chaeyeon", "IZ*ONE", "BLOOMIZ"), ("Yuri", "IZ*ONE", "Oneiric Diary"),
-            ("Yena", "IZ*ONE", "Oneiric Diary"), ("Wonyoung", "IZ*ONE", "Oneiric Diary"), ("Chaewon", "IZ*ONE", "Oneiric Diary"),
-            ("Yuri", "IZ*ONE", "Oneiric Theater"), ("Yena", "IZ*ONE", "Oneiric Theater"), ("Wonyoung", "IZ*ONE", "Oneiric Theater"),
-            ("Chaeyeon", "IZ*ONE", "Oneiric Theater"), ("Sakura", "LE SSERAFIM", "Fearless"), ("Eunchae", "LE SSERAFIM", "Antifragile"),
-            ("Kazuha", "LE SSERAFIM", "Unforgiven"), ("Yunjin", "LE SSERAFIM", "Easy / Crazy")
-        ],
-        'A': [
-            ("Mina", "TWICE", "TT"), ("Chaeyoung", "TWICE", "TT"), ("Sana", "TWICE", "Knock Knock"),
-            ("Dahyun", "TWICE", "Knock Knock"), ("Tzuyu", "TWICE", "Signal"), ("Nayeon", "TWICE", "Signal"),
-            ("Dahyun", "TWICE", "Heart Shaker"), ("Chaeyoung", "TWICE", "Heart Shaker"), ("Sana", "TWICE", "What Is Love?"),
-            ("Dahyun", "TWICE", "What Is Love?"), ("Jihyo", "TWICE", "Fancy"), ("Chaeyoung", "TWICE", "Fancy"),
-            ("Minju", "IZ*ONE", "Debut"), ("Yena", "IZ*ONE", "Debut"), ("Yuri", "IZ*ONE", "Debut"),
-            ("Sakura", "IZ*ONE", "HEARTIZ"), ("Minju", "IZ*ONE", "HEARTIZ"), ("Chaeyeon", "IZ*ONE", "HEARTIZ"),
-            ("Sakura", "IZ*ONE", "BLOOMIZ"), ("Hyewon", "IZ*ONE", "BLOOMIZ"), ("Yuri", "IZ*ONE", "BLOOMIZ"),
-            ("Hyewon", "IZ*ONE", "Oneiric Diary"), ("Sakura", "IZ*ONE", "Oneiric Diary"), ("Chaeyeon", "IZ*ONE", "Oneiric Diary"),
-            ("Hitomi", "IZ*ONE", "Oneiric Theater"), ("Hyewon", "IZ*ONE", "Oneiric Theater"), ("Chaewon", "IZ*ONE", "Oneiric Theater"),
-            ("Karina", "aespa", "Debut"), ("Winter", "aespa", "Next Level"), ("Ningning", "aespa", "Savage"),
-            ("Giselle", "aespa", "Girls"), ("Winter", "aespa", "Spicy"), ("Giselle", "aespa", "Supernova / Armageddon"),
-            ("Ningning", "aespa", "Rich Man"), ("Yunjin", "LE SSERAFIM", "Fearless"), ("Sakura", "LE SSERAFIM", "Antifragile"),
-            ("Eunchae", "LE SSERAFIM", "Unforgiven"), ("Kazuha", "LE SSERAFIM", "Easy / Crazy")
-        ],
-        'S': [
-            ("Sana", "TWICE", "TT"), ("Dahyun", "TWICE", "TT"), ("Chaeyoung", "TWICE", "Knock Knock"),
-            ("Jihyo", "TWICE", "Knock Knock"), ("Mina", "TWICE", "Signal"), ("Sana", "TWICE", "Signal"),
-            ("Sana", "TWICE", "Heart Shaker"), ("Mina", "TWICE", "Heart Shaker"), ("Nayeon", "TWICE", "What Is Love?"),
-            ("Tzuyu", "TWICE", "What Is Love?"), ("Mina", "TWICE", "Fancy"), ("Sana", "TWICE", "Fancy"),
-            ("Nako", "IZ*ONE", "Debut"), ("Hitomi", "IZ*ONE", "Debut"), ("Eunbi", "IZ*ONE", "Debut"),
-            ("Hyewon", "IZ*ONE", "HEARTIZ"), ("Hitomi", "IZ*ONE", "HEARTIZ"), ("Eunbi", "IZ*ONE", "HEARTIZ"),
-            ("Nako", "IZ*ONE", "BLOOMIZ"), ("Hitomi", "IZ*ONE", "BLOOMIZ"), ("Eunbi", "IZ*ONE", "BLOOMIZ"),
-            ("Minju", "IZ*ONE", "Oneiric Diary"), ("Nako", "IZ*ONE", "Oneiric Diary"), ("Eunbi", "IZ*ONE", "Oneiric Diary"),
-            ("Minju", "IZ*ONE", "Oneiric Theater"), ("Eunbi", "IZ*ONE", "Oneiric Theater"), ("Nako", "IZ*ONE", "Oneiric Theater"),
-            ("Ningning", "aespa", "Debut"), ("Giselle", "aespa", "Next Level"), ("Karina", "aespa", "Savage"),
-            ("Winter", "aespa", "Girls"), ("Karina", "aespa", "Spicy"), ("Winter", "aespa", "Supernova / Armageddon"),
-            ("Karina", "aespa", "Rich Man"), ("Kazuha", "LE SSERAFIM", "Fearless"), ("Chaewon", "LE SSERAFIM", "Antifragile"),
-            ("Sakura", "LE SSERAFIM", "Unforgiven"), ("Chaewon", "LE SSERAFIM", "Easy / Crazy")
-        ],
-        'SS': [
-            ("Jeongyeon", "TWICE", "TT"), ("Momo", "TWICE", "Knock Knock"), ("Dahyun", "TWICE", "Signal"),
-            ("Jeongyeon", "TWICE", "Heart Shaker"), ("Mina", "TWICE", "What Is Love?"), ("Tzuyu", "TWICE", "Fancy"),
-            ("Hyewon", "IZ*ONE", "Debut"), ("Nako", "IZ*ONE", "HEARTIZ"), ("Minju", "IZ*ONE", "BLOOMIZ"),
-            ("Hitomi", "IZ*ONE", "Oneiric Diary"), ("Sakura", "IZ*ONE", "Oneiric Theater"), ("Giselle", "aespa", "Debut"),
-            ("Ningning", "aespa", "Next Level"), ("Winter", "aespa", "Savage"), ("Karina", "aespa", "Girls"),
-            ("Giselle", "aespa", "Spicy"), ("Ningning", "aespa", "Supernova / Armageddon"), ("Winter", "aespa", "Rich Man"),
-            ("Eunchae", "LE SSERAFIM", "Fearless"), ("Kazuha", "LE SSERAFIM", "Antifragile"), ("Yunjin", "LE SSERAFIM", "Unforgiven"),
-            ("Sakura", "LE SSERAFIM", "Easy / Crazy")
-        ],
-        'SSS': [
-            ("Karina", "aespa", "Waterbomb"), ("Eunbi", "Soloist", "Waterbomb")
-        ]
-    }
-
-    name, group, era = random.choice(template_names[chosen_rarity])
-
-    base_stats = {
-        'C': (10, 10, 10), 'B': (20, 20, 20), 'A': (35, 35, 35),
-        'S': (50, 50, 50), 'SS': (70, 70, 70), 'SSS': (95, 95, 95)
-    }
-
-    vocal, dance, rap = base_stats[chosen_rarity]
-
-    return create_idol(
-        user_id=user_id,
-        template_id=random.randint(1, 1000),
-        name=name.replace("_", " "),
-        group_name=group,
-        rarity=chosen_rarity,
-        base_vocal=vocal,
-        base_dance=dance,
-        base_rap=rap,
-        era=era
-    )
+    # Simply reuse the main gacha_pull logic with fixed rarity
+    return gacha_pull(user_id, force_rarity=chosen_rarity)
 
 
 def perform_fusion(user_id: int, idol_ids: List[int]) -> dict | str:
