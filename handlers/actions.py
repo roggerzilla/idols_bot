@@ -4,6 +4,7 @@ Handlers usando almacenamiento JSON.
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+from telegram.constants import ParseMode
 import random
 import asyncio
 import time
@@ -84,7 +85,7 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.edit_message_text(
             f"❌ <b>PUNTOS INSUFICIENTES</b>\n\nNecesitas <code>500 pts</code> para usar el Gacha.\n💰 Tus puntos: <code>{u['points'] if u else 0}</code>",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data="back_main")]]),
-            parse_mode="HTML"
+            parse_mode=ParseMode.HTML
         )
         return
 
@@ -438,7 +439,7 @@ async def interact_execute_handler(update: Update, context: ContextTypes.DEFAULT
         f"❤️ Moral: <code>{r['new_morale']}/100</code>\n"
         f"⚡ Energía: <code>{r['new_energy']}/100</code>",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]),
-        parse_mode="HTML"
+        parse_mode=ParseMode.HTML
     )
 
 
@@ -466,19 +467,19 @@ async def personal_event_handler(update: Update, context: ContextTypes.DEFAULT_T
         await q.answer("❌ Error al procesar evento.", show_alert=True); return
 
     result_text = (
-        f"✅ *PERMISO CONCEDIDO: {r['title']}*\n"
+        f"✅ <b>PERMISO CONCEDIDO: {r['title']}</b>\n"
         f"━━━━━━━━━━━━━━━━━━\n"
-        f"Has permitido que *{r['idol_name']}* se tome un descanso personal.\n\n"
-        f"💰 Pagaste: `-{r['cost']} pts` en gastos y logística.\n"
-        f"📉 El descanso afectó su práctica: `-{r['stat_loss']}` Talentos.\n"
-        f"💖 Pero su felicidad es máxima: `+{r['moral_gain']} Moral` y `+{r['energy_gain']} Energía`.\n"
+        f"Has permitido que <b>{r['idol_name']}</b> se tome un descanso personal.\n\n"
+        f"💰 Pagaste: <code>-{r['cost']} pts</code> en gastos y logística.\n"
+        f"📉 El descanso afectó su práctica: <code>-{r['stat_loss']}</code> Talentos.\n"
+        f"💖 Pero su felicidad es máxima: <code>+{r['moral_gain']} Moral</code> y <code>+{r['energy_gain']} Energía</code>.\n"
         f"━━━━━━━━━━━━━━━━━━"
     )
 
     await q.edit_message_text(
         result_text,
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]),
-        parse_mode="Markdown"
+        parse_mode=ParseMode.HTML
     )
 
 
@@ -504,10 +505,10 @@ async def rest_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Show wake up time
     until = r['until'].strftime("%H:%M")
     await q.edit_message_text(
-        f"😴 *{r['idol_name']} se fue a dormir*\n⚡ Energía +{r['energy_gain']} → `{r['new_energy']}/100`\n"
-        f"Regresará a las `{until} UTC`.",
+        f"😴 <b>{r['idol_name']} se fue a dormir</b>\n⚡ Energía +{r['energy_gain']} → <code>{r['new_energy']}/100</code>\n"
+        f"Regresará a las <code>{until} UTC</code>.",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]),
-        parse_mode="Markdown")
+        parse_mode="HTML")
 
 
 # ─── TOUR ───
@@ -535,7 +536,7 @@ async def tour_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await q.edit_message_text(t,
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]) ,
-        parse_mode="Markdown")
+        parse_mode="HTML")
 
 
 # ─── SELL (put on market) ───
@@ -558,8 +559,8 @@ async def sell_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔙 Cancelar", callback_data=f"idols_{idx}_{owner_id}")],
     ]
 
-    await q.edit_message_text("🏷️ *¿A qué precio quieres vender esta idol?*",
-        reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    await q.edit_message_text("🏷️ <b>¿A qué precio quieres vender esta idol?</b>",
+        reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 @handle_telegram_errors
@@ -576,13 +577,13 @@ async def list_sell_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     r = list_idol_for_sale(q.from_user.id, iid, price)
 
     if r == "listed":
-        t = f"✅ Idol puesta en venta por `{price} pts`."
+        t = f"✅ Idol puesta en venta por <code>{price} pts</code>."
     else:
         t = "❌ No se pudo listar."
 
     await q.edit_message_text(t,
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{q.from_user.id}")]]),
-        parse_mode="Markdown")
+        parse_mode="HTML")
 
 
 # ─── MARKET ───
@@ -602,9 +603,9 @@ async def market_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     listings = [idol for idol in all_idols.values() if idol.get("for_sale", False)]
 
     if not listings:
-        await q.edit_message_text("🏪 *MERCADO*\nNo hay idols en venta.",
+        await q.edit_message_text("🏪 <b>MERCADO</b>\nNo hay idols en venta.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{owner_id}")]]),
-            parse_mode="Markdown")
+            parse_mode="HTML")
         return
 
     idx = max(0, min(idx, len(listings) - 1))
@@ -624,7 +625,7 @@ async def market_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
           [InlineKeyboardButton(f"💰 Comprar ({idol['sale_price']} pts)", callback_data=f"buy_{idol['id']}")],
           [InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{owner_id}")]]
 
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 @handle_telegram_errors
@@ -641,9 +642,9 @@ async def buy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if isinstance(r, str):
         await q.answer(f"❌ {r}", show_alert=True); return
 
-    await q.edit_message_text(f"✅ *¡Compraste a {r['idol_name']}!*",
+    await q.edit_message_text(f"✅ <b>¡Compraste a {r['idol_name']}!</b>",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{q.from_user.id}")]]),
-        parse_mode="Markdown")
+        parse_mode="HTML")
 
 
 # ─── SELECT IDOL FOR EVENT ───
@@ -667,9 +668,9 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
 
     if not all_idols:
         await q.edit_message_text(
-            "📉 *NO Tienes idols*\n¡Usa el Gacha primero!",
+            "📉 <b>NO Tienes idols</b>\n¡Usa el Gacha primero!",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"back_main_{owner_id}")]]),
-            parse_mode="Markdown"
+            parse_mode=ParseMode.HTML
         )
         return
 
@@ -681,23 +682,28 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
     
     title = "💖 SELECCIÓN BENÉFICA" if is_charity else "🔞 SELECCIONA IDOL PARA EVENTO"
     
+    total_basic = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
+    total_nsfw = (idol.get("sensitivity", 50) + idol.get("coqueteo", 50) +
+                  idol.get("firmeza_culo", 50) +
+                  idol.get("habilidades_cama", 50) + idol.get("kinky", 50))
+
     card_text = (f"{title}\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
-                f"✨ *{idol['name'].replace('_', ' ').upper()}* {idol.get('group_name', '')}\n"
+                f"✨ <b>{idol['name'].replace('_', ' ').upper()}</b> {idol.get('group_name', '')}\n"
                 f"📊 Rareza: {'⭐' * (['C','B','A','S','SS','SSS'].index(idol['rarity']) + 1)} ({idol['rarity']})\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
                 f"🎤 {idol.get('vocal', 0)} | 💃 {idol.get('dance', 0)} | 🎧 {idol.get('rap', 0)}\n"
-                f"💪 Stats Básicos: `{total_basic}`\n\n")
+                f"💪 Stats Básicos: <code>{total_basic}</code>\n\n")
 
     if not is_charity:
         card_text += (f"❤️ {idol.get('sensitivity', 50)} | 💕 {idol.get('coqueteo', 50)} | 🍑 {idol.get('firmeza_culo', 50)}\n"
                     f"🔥 {idol.get('habilidades_cama', 50)} | 😈 {idol.get('kinky', 50)}\n"
-                    f"💪 Stats NSFW: `{total_nsfw}`\n\n"
-                    f"📈 Total Stats: `{total_basic + total_nsfw}`")
+                    f"💪 Stats NSFW: <code>{total_nsfw}</code>\n\n"
+                    f"📈 Total Stats: <code>{total_basic + total_nsfw}</code>")
     else:
-        card_text += (f"❤️ Moral Actual: `{idol.get('morale', 0)}/100`\n"
-                    f"⚡ Energía Actual: `{idol.get('energy', 0)}/100`\n\n"
-                    f"✨ _Esta acción restaurará la moral al 100%_")
+        card_text += (f"❤️ Moral Actual: <code>{idol.get('morale', 0)}/100</code>\n"
+                    f"⚡ Energía Actual: <code>{idol.get('energy', 0)}/100</code>\n\n"
+                    f"✨ <i>Esta acción restaurará la moral al 100%</i>")
 
     # Botones para otras idols
     nav = []
@@ -717,7 +723,7 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
     await q.edit_message_text(
         card_text,
         reply_markup=InlineKeyboardMarkup(kb),
-        parse_mode="Markdown"
+        parse_mode=ParseMode.HTML
     )
 
 
@@ -766,12 +772,12 @@ async def use_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TYPE)
         ]
         story = random.choice(charity_variants)
         
-        result_text = (f"🌟 *¡EVENTO COMPLETADO!*\n{story}\n\n"
-                      f"👤 CEO: *{q.from_user.username}*\n"
-                      f"💰 Costo: `-{cost} pts` (Donación)\n"
-                      f"📈 Efecto: `❤️ Moral al 100%`\n"
+        result_text = (f"🌟 <b>¡EVENTO COMPLETADO!</b>\n{story}\n\n"
+                      f"👤 CEO: <b>{q.from_user.username}</b>\n"
+                      f"💰 Costo: <code>-{cost} pts</code> (Donación)\n"
+                      f"📈 Efecto: <code>❤️ Moral al 100%</code>\n"
                       f"━━━━━━━━━━━━━━━━━━\n"
-                      f"✨ _Tu idol se siente renovada y lista para brillar en el escenario._")
+                      f"✨ <i>Tu idol se siente renovada y lista para brillar en el escenario.</i>")
     else:
         # Calcular recompensa NSFW
         reward_data = calculate_event_reward(q.from_user.id, iid)
@@ -796,14 +802,14 @@ async def use_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TYPE)
         ]
         story = random.choice(nsfw_variants)
 
-        result_text = (f"🔥 *¡CONTRATO FIRMADO!*\n{story}\n\n"
-                      f"👤 CEO: *{q.from_user.username}*\n"
-                      f"💰 Ganancia: `+{reward_data['reward']} pts` (Rareza {reward_data['rarity']} + {reward_data['stat_bonus']}x Bonus)\n"
-                      f"📉 Efecto: `-20 Moral` | `-15 Energía`\n"
+        result_text = (f"🔥 <b>¡CONTRATO FIRMADO!</b>\n{story}\n\n"
+                      f"👤 CEO: <b>{q.from_user.username}</b>\n"
+                      f"💰 Ganancia: <code>+{reward_data['reward']} pts</code> (Rareza {reward_data['rarity']} + {reward_data['stat_bonus']}x Bonus)\n"
+                      f"📉 Efecto: <code>-20 Moral</code> | <code>-15 Energía</code>\n"
                       f"━━━━━━━━━━━━━━━━━━\n"
-                      f"✨ _Tus stats NSFW han multiplicado la ganancia base significativamente._")
+                      f"✨ <i>Tus stats NSFW han multiplicado la ganancia base significativamente.</i>")
 
-    await q.edit_message_text(result_text, parse_mode="Markdown")
+    await q.edit_message_text(result_text, parse_mode="HTML")
 
 
 # ─── NSFW INFO HANDLER ───
@@ -831,14 +837,14 @@ async def nsfw_info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                   idol.get("firmeza_culo", 50) +
                   idol.get("habilidades_cama", 50) + idol.get("kinky", 50))
 
-    text = (f"🔞 *STATS NSFW de {idol['name'].replace('_', ' ').upper()}*\n"
+    text = (f"🔞 <b>STATS NSFW de {idol['name'].replace('_', ' ').upper()}</b>\n"
             f"━━━━━━━━━━━━━━━━━━\n"
-            f"{NSFW_STAT_EMOJIS['sensitivity']} Sensibilidad: `{idol.get('sensitivity', 50)}/100`\n"
-            f"{NSFW_STAT_EMOJIS['coqueteo']} Coqueteo: `{idol.get('coqueteo', 50)}/100`\n"
-            f"{NSFW_STAT_EMOJIS['firmeza_culo']} Firmeza Culo: `{idol.get('firmeza_culo', 50)}/100`\n"
-            f"{NSFW_STAT_EMOJIS['habilidades_cama']} Habilidades Cama: `{idol.get('habilidades_cama', 50)}/100`\n"
-            f"{NSFW_STAT_EMOJIS['kinky']} Kinky: `{idol.get('kinky', 50)}/100`\n\n"
-            f"💪 Total NSFW: `{total_nsfw}/500`")
+            f"{NSFW_STAT_EMOJIS['sensitivity']} Sensibilidad: <code>{idol.get('sensitivity', 50)}/100</code>\n"
+            f"{NSFW_STAT_EMOJIS['coqueteo']} Coqueteo: <code>{idol.get('coqueteo', 50)}/100</code>\n"
+            f"{NSFW_STAT_EMOJIS['firmeza_culo']} Firmeza Culo: <code>{idol.get('firmeza_culo', 50)}/100</code>\n"
+            f"{NSFW_STAT_EMOJIS['habilidades_cama']} Habilidades Cama: <code>{idol.get('habilidades_cama', 50)}/100</code>\n"
+            f"{NSFW_STAT_EMOJIS['kinky']} Kinky: <code>{idol.get('kinky', 50)}/100</code>\n\n"
+            f"💪 Total NSFW: <code>{total_nsfw}/500</code>")
 
     kb = [
         [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")],
@@ -857,7 +863,7 @@ async def nsfw_info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.edit_message_text(
         text,
         reply_markup=InlineKeyboardMarkup(kb),
-        parse_mode="Markdown"
+        parse_mode=ParseMode.HTML
     )
 
 
@@ -890,10 +896,10 @@ async def nsfw_train_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await q.answer("❌ Error.", show_alert=True); return
 
     await q.edit_message_text(
-        f"🔞 *ENTRENAMIENTO NSFW de {r['idol_name']}*\n━━━━━━━━━━━━━━━━━━\n"
-        f"{r['emoji']} {r['stat']} subió `+{r['boost']}` → `{r['new_val']}/100`",
+        f"🔞 <b>ENTRENAMIENTO NSFW de {r['idol_name']}</b>\n━━━━━━━━━━━━━━━━━━\n"
+        f"{r['emoji']} {r['stat']} subió <code>+{r['boost']}</code> → <code>{r['new_val']}/100</code>",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]),
-        parse_mode="Markdown"
+        parse_mode=ParseMode.HTML
     )
 
 
@@ -910,7 +916,7 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not event or event.get("is_taken"):
         await q.answer("❌ Este evento ya ha sido reclamado.", show_alert=True)
         try:
-            await q.edit_message_text("⌛ *EVENTO FINALIZADO*\nEste contrato ya ha sido firmado.", parse_mode="Markdown")
+            await q.edit_message_text("⌛ <b>EVENTO FINALIZADO</b>\nEste contrato ya ha sido firmado.", parse_mode="HTML")
         except: pass
         return
 
@@ -926,23 +932,30 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     title = "💖 SELECCIÓN BENÉFICA" if is_charity else "🔞 SELECCIONA IDOL PARA EVENTO"
     
+    idx = 0 # Default for global claim
+    idol = all_idols[idx]
+    total_basic = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
+    total_nsfw = (idol.get("sensitivity", 50) + idol.get("coqueteo", 50) +
+                  idol.get("firmeza_culo", 50) +
+                  idol.get("habilidades_cama", 50) + idol.get("kinky", 50))
+
     text = (f"{title}\n"
             f"━━━━━━━━━━━━━━━━━━\n"
-            f"✨ *{idol['name'].replace('_', ' ').upper()}* {idol.get('group_name', '')}\n"
+            f"✨ <b>{idol['name'].replace('_', ' ').upper()}</b> {idol.get('group_name', '')}\n"
             f"📊 Rareza: {'⭐' * (['C','B','A','S','SS','SSS'].index(idol['rarity']) + 1)} ({idol['rarity']})\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"🎤 {idol.get('vocal', 0)} | 💃 {idol.get('dance', 0)} | 🎧 {idol.get('rap', 0)}\n"
-            f"💪 Stats Básicos: `{total_basic}`\n\n")
+            f"💪 Stats Básicos: <code>{total_basic}</code>\n\n")
 
     if not is_charity:
         text += (f"❤️ {idol.get('sensitivity', 50)} | 💕 {idol.get('coqueteo', 50)} | 🍑 {idol.get('firmeza_culo', 50)}\n"
                 f"🔥 {idol.get('habilidades_cama', 50)} | 😈 {idol.get('kinky', 50)}\n"
-                f"💪 Stats NSFW: `{total_nsfw}`\n\n"
-                f"📈 Total Stats: `{total_basic + total_nsfw}`")
+                f"💪 Stats NSFW: <code>{total_nsfw}</code>\n\n"
+                f"📈 Total Stats: <code>{total_basic + total_nsfw}</code>")
     else:
-        text += (f"❤️ Moral Actual: `{idol.get('morale', 0)}/100`\n"
-                f"⚡ Energía Actual: `{idol.get('energy', 0)}/100`\n\n"
-                f"✨ _Esta acción restaurará la moral al 100%_")
+        text += (f"❤️ Moral Actual: <code>{idol.get('morale', 0)}/100</code>\n"
+                f"⚡ Energía Actual: <code>{idol.get('energy', 0)}/100</code>\n\n"
+                f"✨ <i>Esta acción restaurará la moral al 100%</i>")
 
     nav = []
     if idx > 0:
@@ -961,7 +974,7 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.edit_message_text(
         text,
         reply_markup=InlineKeyboardMarkup(kb),
-        parse_mode="Markdown"
+        parse_mode=ParseMode.HTML
     )
 
 
@@ -989,7 +1002,7 @@ async def help_points_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
     kb = [[InlineKeyboardButton("🔙 Volver", callback_data=f"back_main_{q.from_user.id}")]]
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 @handle_telegram_errors
@@ -1006,27 +1019,27 @@ async def help_game_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.answer()
     
     text = (
-        "👑 *GUÍA DEFINITIVA DEL CEO DE IDOLS*\n"
+        "👑 <b>GUÍA DEFINITIVA DEL CEO DE IDOLS</b>\n"
         "━━━━━━━━━━━━━━━━━━\n"
-        "🎤 *HABILIDADES Y ÉXITO*\n"
-        "• *Talento (V, D, R):* Vocal, Dance y Rap. Determinan el éxito de los *Comebacks*. Un MEGA HIT puede darte x2 de recompensa.\n"
-        "• *Stats NSFW:* Sensibilidad, Coqueteo, Firmeza, Cama y Kinky. Son vitales para los *Eventos Globales*. A mayor nivel, ¡contratos más millonarios!\n\n"
-        "💎 *RAREZAS Y MULTIPLICADORES*\n"
-        "• `C` (40%): x1.0 | `B` (35%): x1.5\n"
-        "• `A` (18%): x2.5 | `S` (6%): x5.0\n"
-        "• `SS` (1%): x10.0 (¡Diosas Legendarias!)\n\n"
-        "💸 *ECONOMÍA Y GASTOS*\n"
-        "• *Mantenimiento:* Cada 24h pagas 50 pts por cada idol. Si no tienes puntos, tus idols entrarán en *Hiatus* (se pausan y no ganan nada).\n"
-        "• *Energía (⚡):* Se gasta al trabajar. Si baja de 20, no podrán hacer Comebacks. Recupérala con 'Descansar'.\n"
-        "• *Moral (❤️):* Afecta el Score. Si es baja, tus canciones serán un FLOP. Súbela con 'Saludar'.\n\n"
-        "🏪 *MERCADO Y TOURS*\n"
+        "🎤 <b>HABILIDADES Y ÉXITO</b>\n"
+        "• <b>Talento (V, D, R):</b> Vocal, Dance y Rap. Determinan el éxito de los <b>Comebacks</b>. Un MEGA HIT puede darte x2 de recompensa.\n"
+        "• <b>Stats NSFW:</b> Sensibilidad, Coqueteo, Firmeza, Cama y Kinky. Son vitales para los <b>Eventos Globales</b>. A mayor nivel, ¡contratos más millonarios!\n\n"
+        "💎 <b>RAREZAS Y MULTIPLICADORES</b>\n"
+        "• <code>C</code> (40%): x1.0 | <code>B</code> (35%): x1.5\n"
+        "• <code>A</code> (18%): x2.5 | <code>S</code> (6%): x5.0\n"
+        "• <code>SS</code> (1%): x10.0 (¡Diosas Legendarias!)\n\n"
+        "💸 <b>ECONOMÍA Y GASTOS</b>\n"
+        "• <b>Mantenimiento:</b> Cada 24h pagas 50 pts por cada idol. Si no tienes puntos, tus idols entrarán en <b>Hiatus</b> (se pausan y no ganan nada).\n"
+        "• <b>Energía (⚡):</b> Se gasta al trabajar. Si baja de 20, no podrán hacer Comebacks. Recupérala con 'Descansar'.\n"
+        "• <b>Moral (❤️):</b> Afecta el Score. Si es baja, tus canciones serán un FLOP. Súbela con 'Saludar'.\n\n"
+        "🏪 <b>MERCADO Y TOURS</b>\n"
         "• Puedes vender idols al precio que quieras. El mercado es global entre todos los jugadores.\n"
-        "• Los *World Tours* duran 12h y son la mejor forma de ganar puntos mientras no estás conectado.\n"
+        "• Los <b>World Tours</b> duran 12h y son la mejor forma de ganar puntos mientras no estás conectado.\n"
         "━━━━━━━━━━━━━━━━━━"
     )
     
     kb = [[InlineKeyboardButton("🔙 Volver", callback_data=f"back_main_{q.from_user.id}")]]
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 # ─── FUSION HANDLERS ───
 @handle_telegram_errors
@@ -1059,7 +1072,7 @@ async def fusion_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             slot_texts.append(f"Slot {i+1}: _[Vacío]_")
 
     text = (
-        "🧪 *CÁMARA DE FUSIÓN*\n"
+        "🧪 <b>CÁMARA DE FUSIÓN</b>\n"
         "━━━━━━━━━━━━━━━━━━\n"
         "Combina 3 idols para obtener una nueva con mejores probabilidades de rareza alta.\n\n"
         + "\n".join(slot_texts) +
@@ -1077,7 +1090,7 @@ async def fusion_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     kb.append([InlineKeyboardButton("🧹 Limpiar todo", callback_data=f"fus_clear_{owner_id}")])
     kb.append([InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{owner_id}")])
 
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 @handle_telegram_errors
@@ -1109,7 +1122,7 @@ async def fusion_select_slot_handler(update: Update, context: ContextTypes.DEFAU
     end_idx = start_idx + per_page
     page_idols = available[start_idx:end_idx]
 
-    text = f"🧪 *SELECCIONAR PARA SLOT {slot_idx + 1}*\n(Página {page+1}/{total_pages})"
+    text = f"🧪 <b>SELECCIONAR PARA SLOT {slot_idx + 1}</b>\n(Página {page+1}/{total_pages})"
     
     kb = []
     for idol in page_idols:
@@ -1126,7 +1139,7 @@ async def fusion_select_slot_handler(update: Update, context: ContextTypes.DEFAU
 
     kb.append([InlineKeyboardButton("🔙 Volver", callback_data=f"fusion_main_{owner_id}")])
 
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 @handle_telegram_errors
@@ -1163,7 +1176,7 @@ async def fusion_execute_handler(update: Update, context: ContextTypes.DEFAULT_T
         await q.answer("❌ Necesitas 3 idols.", show_alert=True); return
 
     # Feedback visual inmediato
-    await q.edit_message_text("🧪 *PROCESANDO FUSIÓN...*\n━━━━━━━━━━━━━━━━━━\n🧬 Combinando secuencias de ADN...\n✨ Estabilizando núcleos de idols...\n⏳ Por favor espera un momento...", parse_mode="Markdown")
+    await q.edit_message_text("🧪 <b>PROCESANDO FUSIÓN...</b>\n━━━━━━━━━━━━━━━━━━\n🧬 Combinando secuencias de ADN...\n✨ Estabilizando núcleos de idols...\n⏳ Por favor espera un momento...", parse_mode="HTML")
     
     try:
         result = perform_fusion(owner_id, slots)
@@ -1228,7 +1241,7 @@ async def fusion_execute_handler(update: Update, context: ContextTypes.DEFAULT_T
     )
 
     kb = [[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{owner_id}")]]
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 @handle_telegram_errors

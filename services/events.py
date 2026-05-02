@@ -4,6 +4,7 @@ Servicios de eventos usando almacenamiento JSON.
 
 import random
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.constants import ParseMode
 from datetime import datetime
 from storage import (
     get_all_groups, create_event, get_event, take_event
@@ -46,21 +47,21 @@ async def create_and_broadcast_event(application, force_type=None):
     # Build message
     if is_charity:
         text = (
-            f"💖 *EVENTO GLOBAL: {event_data['title']}*\n"
+            f"💖 <b>EVENTO GLOBAL: {event_data['title']}</b>\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"{event_data['desc']}\n\n"
-            f"💸 *Costo:* `{points} pts`\n"
-            f"❤️ *Beneficio:* Moral de tu idol al MÁXIMO\n\n"
-            f"⚡ _¡El primero en aceptar se lo lleva!_"
+            f"💸 <b>Costo:</b> <code>{points} pts</code>\n"
+            f"❤️ <b>Beneficio:</b> Moral de tu idol al MÁXIMO\n\n"
+            f"⚡ <i>¡El primero en aceptar se lo lleva!</i>"
         )
     else:
         text = (
-            f"🔥 *EVENTO GLOBAL: {event_data['title']}*\n"
+            f"🔥 <b>EVENTO GLOBAL: {event_data['title']}</b>\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"{event_data['desc']}\n\n"
-            f"💰 *Recompensa:* `{points} pts`\n"
-            f"📉 *Riesgo:* La moral de tu idol bajará\n\n"
-            f"⚡ _¡El primero en reclamar se lo lleva!_"
+            f"💰 <b>Recompensa:</b> <code>{points} pts</code>\n"
+            f"📉 <b>Riesgo:</b> La moral de tu idol bajará\n\n"
+            f"⚡ <i>¡El primero en reclamar se lo lleva!</i>"
         )
 
     keyboard = InlineKeyboardMarkup([
@@ -76,7 +77,7 @@ async def create_and_broadcast_event(application, force_type=None):
                 chat_id=chat_id,
                 text=text,
                 reply_markup=keyboard,
-                parse_mode="Markdown"
+                parse_mode=ParseMode.HTML
             )
             # Save message info so we can edit it later
             new_event["chat_id"] = chat_id

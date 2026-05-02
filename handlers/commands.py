@@ -4,6 +4,7 @@ Handlers de comandos usando almacenamiento JSON.
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+from telegram.constants import ParseMode
 from datetime import datetime
 from storage import get_user, create_user, add_group, get_all_groups, get_user_idols
 from utils.formatter import format_user_profile
@@ -54,9 +55,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for _ in range(3):
         try:
             await update.message.reply_text(
-                f"🏠 *Panel de CEO — {user.get('username', user_tg.username)}*\n💰 Puntos: `{user.get('points', 0)}`",
+                f"🏠 <b>Panel de CEO — {user.get('username', user_tg.username)}</b>\n💰 Puntos: <code>{user.get('points', 0)}</code>",
                 reply_markup=InlineKeyboardMarkup(kb),
-                parse_mode="Markdown"
+                parse_mode=ParseMode.HTML
             )
             break
         except Exception as e:
@@ -105,40 +106,40 @@ async def admin_personal_event(update: Update, context: ContextTypes.DEFAULT_TYP
 
     event = random.choice(PERSONAL_EVENTS)
     event_text = (
-        f"⚡ *FORZAR EVENTO PERSONAL (Admin)*\n"
+        f"⚡ <b>FORZAR EVENTO PERSONAL (Admin)</b>\n"
         f"━━━━━━━━━━━━━━━━━━\n"
-        f"✨ *{idol['name'].upper()}*\n\n"
+        f"✨ <b>{idol['name'].upper()}</b>\n\n"
         f"{event['desc']}\n\n"
-        f"💰 Costo: `{event['cost_points']} pts`\n"
-        f"📉 Talento: `-{event['stat_loss']}`\n"
-        f"❤️ Moral: `+{event['moral_gain']}`\n"
-        f"⚡ Energía: `+{event['energy_gain']}`\n"
+        f"💰 Costo: <code>{event['cost_points']} pts</code>\n"
+        f"📉 Talento: <code>-{event['stat_loss']}</code>\n"
+        f"❤️ Moral: <code>+{event['moral_gain']}</code>\n"
+        f"⚡ Energía: <code>+{event['energy_gain']}</code>\n"
         f"━━━━━━━━━━━━━━━━━━"
     )
     kb = [
         [InlineKeyboardButton("✅ Permitir", callback_data=f"pev_acc_{event['id']}_{idol['id']}_{idx}_{uid}")],
         [InlineKeyboardButton("❌ Denegar", callback_data=f"idols_{idx}_{uid}")]
     ]
-    await update.message.reply_text(event_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    await update.message.reply_text(event_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode=ParseMode.HTML)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     t = (
-        "📖 *GUÍA DEL CEO DE IDOLS*\n"
+        "📖 <b>GUÍA DEL CEO DE IDOLS</b>\n"
         "━━━━━━━━━━━━━━━━━━\n"
-        "🎰 *Gacha:* Consigue nuevas idols por 500 pts.\n"
-        "📀 *Comebacks:* Lanza álbumes. Dependen de Vocal, Dance y Rap.\n"
-        "💪 *Entrenar:* Mejora las stats de tu idol por 200 pts.\n"
-        "🔞 *Stats NSFW:* Influyen en los premios de Eventos Globales.\n"
-        "✈️ *World Tour:* Envía a tu idol de gira (12h) para ganar puntos pasivos.\n"
-        "🏪 *Mercado:* Compra y vende idols con otros jugadores.\n"
+        "🎰 <b>Gacha:</b> Consigue nuevas idols por 500 pts.\n"
+        "📀 <b>Comebacks:</b> Lanza álbumes. Dependen de Vocal, Dance y Rap.\n"
+        "💪 <b>Entrenar:</b> Mejora las stats de tu idol por 200 pts.\n"
+        "🔞 <b>Stats NSFW:</b> Influyen en los premios de Eventos Globales.\n"
+        "✈️ <b>World Tour:</b> Envía a tu idol de gira (12h) para ganar puntos pasivos.\n"
+        "🏪 <b>Mercado:</b> Compra y vende idols con otros jugadores.\n"
         "━━━━━━━━━━━━━━━━━━\n"
-        "👑 *COMANDOS DE ADMIN:*\n"
+        "👑 <b>COMANDOS DE ADMIN:</b>\n"
         "/evento — Lanza evento aleatorio\n"
         "/evento nsfw — Fuerza evento NSFW\n"
         "/evento charity — Fuerza evento de caridad"
     )
-    await update.message.reply_text(t, parse_mode="Markdown")
+    await update.message.reply_text(t, parse_mode=ParseMode.HTML)
 
 
 async def profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -164,7 +165,7 @@ async def profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await q.edit_message_text(
         text,
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{q.from_user.id}")]]),
-        parse_mode="Markdown"
+        parse_mode=ParseMode.HTML
     )
 
 
@@ -196,9 +197,9 @@ async def back_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for _ in range(3):
         try:
             await q.edit_message_text(
-                f"🏠 *Panel de CEO*\n💰 Puntos: `{user.get('points', 0)}`",
+                f"🏠 <b>Panel de CEO</b>\n💰 Puntos: <code>{user.get('points', 0)}</code>",
                 reply_markup=InlineKeyboardMarkup(kb),
-                parse_mode="Markdown"
+                parse_mode=ParseMode.HTML
             )
             break
         except Exception as e:
