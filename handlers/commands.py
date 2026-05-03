@@ -225,6 +225,16 @@ async def admin_give_idol(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Error: {e}")
 
 
+async def my_id_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Comando simple para que el usuario obtenga su propio ID"""
+    uid = update.effective_user.id
+    await update.message.reply_text(
+        f"🆔 Tu Telegram ID es: <code>{uid}</code>\n"
+        f"<i>(Haz click en el número para copiarlo)</i>",
+        parse_mode=ParseMode.HTML
+    )
+
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     t = (
         "📖 <b>GUÍA DEL CEO DE IDOLS</b>\n"
