@@ -297,7 +297,7 @@ async def idol_submenu_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 # ─── COMEBACK ───
 async def idols_list_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Muestra una lista compacta de todas las idols del usuario con paginación"""
+    """Muestra una lista compacta de todas las idols con botones numéricos"""
     q = update.callback_query
     parts = q.data.split("_")
     page = int(parts[2])
@@ -310,25 +310,27 @@ async def idols_list_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not all_idols:
         await q.answer("❌ No tienes idols.", show_alert=True); return
 
-    per_page = 10
+    per_page = 5
     total_pages = (len(all_idols) - 1) // per_page + 1
     start_idx = page * per_page
     end_idx = start_idx + per_page
     page_idols = all_idols[start_idx:end_idx]
 
-    text = f"📖 <b>INVENTARIO DE IDOLS ({len(all_idols)})</b>\n"
+    text = f"📖 <b>INVENTARIO ({len(all_idols)})</b>\n"
     text += f"Página {page + 1} de {total_pages}\n"
     text += "━━━━━━━━━━━━━━━━━━\n\n"
 
-    kb = []
+    num_buttons = []
     for i, idol in enumerate(page_idols):
         global_idx = start_idx + i
-        text += f"{global_idx + 1}. <b>{idol['name']}</b> ({idol['rarity']})\n"
-        # Botón para ir a ver esta idol individualmente
-        kb.append([InlineKeyboardButton(f"👀 Ver #{global_idx + 1} {idol['name']}", callback_data=f"idols_{global_idx}_{owner_id}")])
+        era = idol.get('era', 'Standard')
+        text += f"{global_idx + 1}. <b>{idol['name']}</b> ({era}) ({idol['rarity']})\n"
+        num_buttons.append(InlineKeyboardButton(f"{global_idx + 1}", callback_data=f"idols_{global_idx}_{owner_id}"))
 
     text += "\n━━━━━━━━━━━━━━━━━━"
 
+    kb = [num_buttons] # Fila de números
+    
     # Navegación de páginas
     nav = []
     if page > 0:
