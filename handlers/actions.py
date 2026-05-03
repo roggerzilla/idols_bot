@@ -1067,9 +1067,9 @@ async def fusion_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     for i, s_id in enumerate(slots):
         if s_id and str(s_id) in all_idols:
             idol = all_idols[str(s_id)]
-            slot_texts.append(f"Slot {i+1}: *{idol['name']}* ({idol['rarity']})")
+            slot_texts.append(f"Slot {i+1}: <b>{idol['name']}</b> ({idol['rarity']})")
         else:
-            slot_texts.append(f"Slot {i+1}: _[Vacío]_")
+            slot_texts.append(f"Slot {i+1}: <i>[Vacío]</i>")
 
     text = (
         "🧪 <b>CÁMARA DE FUSIÓN</b>\n"

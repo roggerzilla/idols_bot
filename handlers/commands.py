@@ -123,6 +123,108 @@ async def admin_personal_event(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.message.reply_text(event_text, reply_markup=InlineKeyboardMarkup(kb), parse_mode=ParseMode.HTML)
 
 
+async def admin_give_points(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Comando de admin para dar puntos a un usuario: /dar_puntos <user_id> <amount>"""
+    uid = update.effective_user.id
+    if ADMIN_IDS and uid not in ADMIN_IDS:
+        await update.message.reply_text("❌ Sin permisos.")
+        return
+
+    if len(context.args) < 2:
+        await update.message.reply_text("💡 Uso: `/dar_puntos <user_id> <cantidad>`", parse_mode=ParseMode.HTML)
+        return
+
+    try:
+        target_id = int(context.args[0])
+        amount = int(context.args[1])
+        
+        from storage import add_points, get_user
+        user = get_user(target_id)
+        if not user:
+            await update.message.reply_text("❌ Usuario no encontrado.")
+            return
+
+        add_points(target_id, amount)
+        await update.message.reply_text(f"✅ Se han otorgado <b>{amount} pts</b> al CEO <code>{user.get('username')}</code>", parse_mode=ParseMode.HTML)
+    except ValueError:
+        await update.message.reply_text("❌ Los argumentos deben ser números.")
+
+
+async def admin_give_idol(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Comando de admin para dar una idol: /dar_idol <user_id> <id_or_name> [era]"""
+    uid = update.effective_user.id
+    if ADMIN_IDS and uid not in ADMIN_IDS:
+        await update.message.reply_text("❌ Sin permisos.")
+        return
+
+    if len(context.args) < 2:
+        await update.message.reply_text("💡 Uso: `/dar_idol <user_id> <id_o_nombre> [era]`", parse_mode=ParseMode.HTML)
+        return
+
+    try:
+        target_id = int(context.args[0])
+        identifier = context.args[1]
+        era_filter = context.args[2] if len(context.args) > 2 else None
+        
+        from storage import get_all_templates, create_idol, get_user
+        user = get_user(target_id)
+        if not user:
+            await update.message.reply_text("❌ Usuario no encontrado.")
+            return
+
+        templates = get_all_templates()
+        found_template = None
+
+        # 1. Buscar por ID
+        if identifier.isdigit() and identifier in templates:
+            found_template = templates[identifier]
+        
+        # 2. Buscar por nombre
+        if not found_template:
+            matches = []
+            for tid, t in templates.items():
+                if t["name"].lower() == identifier.lower().replace("_", " "):
+                    if era_filter:
+                        if t.get("era", "").lower() == era_filter.lower().replace("_", " "):
+                            matches.append(t)
+                    else:
+                        matches.append(t)
+            
+            if not matches:
+                await update.message.reply_text(f"❌ No se encontró ninguna idol llamada '{identifier}'.")
+                return
+            elif len(matches) > 1:
+                text = f"⚠️ Se encontraron {len(matches)} versiones. Sé más específico:\n"
+                for m in matches:
+                    text += f"• ID: <code>{m['id']}</code> | Era: {m.get('era', 'Standard')}\n"
+                await update.message.reply_text(text, parse_mode=ParseMode.HTML)
+                return
+            else:
+                found_template = matches[0]
+
+        # Crear Idol
+        new_idol = create_idol(
+            user_id=target_id,
+            template_id=found_template["id"],
+            name=found_template["name"],
+            group_name=found_template["group_name"],
+            rarity=found_template["rarity"],
+            base_vocal=found_template["base_vocal"],
+            base_dance=found_template["base_dance"],
+            base_rap=found_template["base_rap"],
+            era=found_template.get("era", "Standard")
+        )
+
+        await update.message.reply_text(
+            f"✅ ¡Éxito! Se ha asignado <b>{found_template['name']}</b> ({found_template['rarity']}) a <code>{user.get('username')}</code>\n"
+            f"🆔 ID de instancia: <code>{new_idol['id']}</code>",
+            parse_mode=ParseMode.HTML
+        )
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ Error: {e}")
+
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     t = (
         "📖 <b>GUÍA DEL CEO DE IDOLS</b>\n"
@@ -191,7 +293,8 @@ async def back_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("👯 Mis Idols", callback_data=f"idols_0_{q.from_user.id}"),
          InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data=f"gacha_{q.from_user.id}")],
         [InlineKeyboardButton("🏪 Mercado", callback_data=f"market_0_{q.from_user.id}"),
-         InlineKeyboardButton("💰 Ganar Puntos", callback_data=f"help_pts_{q.from_user.id}")],
+         InlineKeyboardButton("🧪 Fusión", callback_data=f"fusion_main_{q.from_user.id}")],
+        [InlineKeyboardButton("💰 Ganar Puntos", callback_data=f"help_pts_{q.from_user.id}")],
     ]
 
     for _ in range(3):
