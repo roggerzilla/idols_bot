@@ -154,9 +154,21 @@ def get_all_idols() -> Dict[int, dict]:
 
 
 def get_user_idols(user_id: int) -> List[dict]:
-    """Obtiene todas las idols de un usuario."""
+    """Obtiene todas las idols de un usuario y sincroniza fotos si es necesario."""
     all_idols = get_all_idols()
-    return [idol for idol in all_idols.values() if idol.get("user_id") == user_id]
+    user_idols = [idol for idol in all_idols.values() if idol.get("user_id") == user_id]
+    
+    # Auto-parche: Sincronizar file_id desde la plantilla si falta
+    templates = get_all_templates()
+    updated = False
+    for idol in user_idols:
+        tid = str(idol.get("template_id"))
+        if tid in templates and templates[tid].get("file_id") and not idol.get("file_id"):
+            idol["file_id"] = templates[tid]["file_id"]
+            update_idol(idol["id"], file_id=idol["file_id"])
+            updated = True
+            
+    return user_idols
 
 
 def create_idol(
@@ -168,10 +180,17 @@ def create_idol(
     base_vocal: int,
     base_dance: int,
     base_rap: int,
-    era: str = "Standard"
+    era: str = "Standard",
+    file_id: str = None
 ) -> dict:
     """Crea una nueva idol."""
     idols = get_all_idols()
+    
+    # Si no hay file_id, buscarlo en la plantilla
+    if not file_id:
+        templates = get_all_templates()
+        if str(template_id) in templates:
+            file_id = templates[str(template_id)].get("file_id")
     # Usar timestamp para evitar colisiones de IDs al borrar/crear rápidamente
     import time
     idol_id = int(time.time() * 1000)
@@ -192,6 +211,7 @@ def create_idol(
         "vocal": base_vocal,
         "dance": base_dance,
         "rap": base_rap,
+        "file_id": file_id,
         "morale": 100,
         "energy": 100,
         # NSFW Stats
