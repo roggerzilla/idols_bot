@@ -145,12 +145,26 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💰 Puntos restantes: <code>{u.get('points', 0)}</code>"
     )
 
-    await q.edit_message_text(
-        reveal_text,
-        reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("🎰 Otro Gacha (500 pts)", callback_data=f"gacha_{uid}")],
-            [InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{uid}")]
-        ]), parse_mode="HTML")
+    if new_idol.get("file_id"):
+        await q.message.reply_photo(
+            photo=new_idol["file_id"],
+            caption=reveal_text,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🎰 Otro Gacha (500 pts)", callback_data=f"gacha_{uid}")],
+                [InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{uid}")]
+            ]),
+            parse_mode=ParseMode.HTML
+        )
+        await q.delete_message()
+    else:
+        await q.edit_message_text(
+            reveal_text,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🎰 Otro Gacha (500 pts)", callback_data=f"gacha_{uid}")],
+                [InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{uid}")]
+            ]), 
+            parse_mode=ParseMode.HTML
+        )
 
 
 # ─── IDOL NAVIGATION (flat, with prev/next) ───
@@ -247,7 +261,17 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔙 Menú Principal", callback_data=f"back_main_{uid}")],
     ]
 
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+    if idol.get("file_id"):
+        # Si hay foto, enviamos un mensaje nuevo con foto y borramos el anterior para evitar conflictos de media
+        await q.message.reply_photo(
+            photo=idol["file_id"],
+            caption=text,
+            reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode=ParseMode.HTML
+        )
+        await q.delete_message()
+    else:
+        await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode=ParseMode.HTML)
 
 
 # ─── IDOL SUBMENUS ───
