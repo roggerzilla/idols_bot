@@ -7,9 +7,9 @@ import asyncio
 import random
 import time
 import sys
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from config import TELEGRAM_TOKEN
-from handlers.commands import start, profile_handler, back_main, admin_evento, help_command, admin_personal_event, admin_give_points, admin_give_idol, my_id_command
+from handlers.commands import start, profile_handler, back_main, admin_evento, help_command, admin_personal_event, admin_give_points, admin_give_idol, my_id_command, get_photo_id_handler
 from handlers.actions import (
     gacha_handler, idols_handler, comeback_handler,
     train_menu_handler, train_execute_handler, interact_menu_handler, interact_execute_handler,
@@ -78,6 +78,7 @@ def create_application():
     application.add_handler(CommandHandler("dar_puntos", admin_give_points))
     application.add_handler(CommandHandler("dar_idol", admin_give_idol))
     application.add_handler(CommandHandler("myid", my_id_command))
+    application.add_handler(MessageHandler(filters.PHOTO, get_photo_id_handler))
 
     application.add_handler(CallbackQueryHandler(profile_handler, pattern="^profile_\\d+$"))
     application.add_handler(CallbackQueryHandler(back_main, pattern="^back_main_\\d+$"))

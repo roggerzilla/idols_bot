@@ -281,6 +281,22 @@ async def profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def get_photo_id_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Herramienta de admin: responde con el file_id de cualquier foto enviada"""
+    uid = update.effective_user.id
+    from config import ADMIN_IDS
+    if ADMIN_IDS and uid not in ADMIN_IDS:
+        return 
+
+    if update.message.photo:
+        file_id = update.message.photo[-1].file_id
+        await update.message.reply_text(
+            f"🖼 <b>FILE ID DETECTADO</b>\n\n<code>{file_id}</code>\n\n"
+            f"<i>Copia este código para tu templates.json</i>",
+            parse_mode=ParseMode.HTML
+        )
+
+
 async def back_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
