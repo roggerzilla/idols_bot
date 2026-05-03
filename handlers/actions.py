@@ -84,7 +84,7 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not u or u.get("points", 0) < 500:
         await q.edit_message_text(
             f"❌ <b>PUNTOS INSUFICIENTES</b>\n\nNecesitas <code>500 pts</code> para usar el Gacha.\n💰 Tus puntos: <code>{u['points'] if u else 0}</code>",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data="back_main")]]),
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"back_main_{uid}")]]),
             parse_mode=ParseMode.HTML
         )
         return
@@ -138,6 +138,7 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"━━━━━━━━━━━━━━━━━━\n"
         f"✨ <b>{name.upper()}</b>\n"
         f"🏢 {group}\n"
+        f"📀 Era: <code>{new_idol.get('era', 'Standard')}</code>\n"
         f"📊 Rareza: {theme['emoji']} ({new_idol['rarity']})\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"🎤 {new_idol['vocal']} | 💃 {new_idol['dance']} | 🎧 {new_idol['rap']}\n\n"
