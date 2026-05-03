@@ -94,6 +94,21 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Deduct points
     deduct_points(uid, 500)
 
+    # --- ANIMACIÓN DE RULETA ---
+    roulette_frames = [
+        "🎰 <b>SINTONIZANDO...</b>\n\n[ ⬛ ⬛ ⬛ ⬛ ⬛ ]",
+        "✨ <b>BUSCANDO TALENTO...</b>\n\n[ ⭐ ⬛ ⬛ ⬛ ⭐ ]",
+        "💎 <b>ESCANEANDO IDOLS...</b>\n\n[ 💎 ✨ ⭐ ✨ 💎 ]",
+        "🎤 <b>¡CONTRATO LISTO!</b>\n\n[ 👑 👑 👑 👑 👑 ]"
+    ]
+    
+    for frame in roulette_frames:
+        try:
+            await q.edit_message_text(frame, parse_mode=ParseMode.HTML)
+            await asyncio.sleep(0.5)
+        except:
+            continue
+
     # Pull idol
     new_idol = gacha_pull(uid)
 
