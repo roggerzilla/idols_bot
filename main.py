@@ -15,7 +15,8 @@ from handlers.actions import (
     train_menu_handler, train_execute_handler, interact_menu_handler, interact_execute_handler,
     idol_submenu_handler,
     rest_handler, tour_handler, sell_handler, list_sell_handler,
-    market_handler, buy_handler, claim_handler, noop_handler, help_points_handler,
+    market_handler, buy_handler, cancel_sale_handler,
+    idols_list_handler, claim_handler, noop_handler, help_points_handler,
     select_idol_for_event, use_idol_for_event, nsfw_info_handler, nsfw_train_handler,
     help_game_handler, fusion_menu_handler, fusion_select_slot_handler,
     fusion_pick_idol_handler, fusion_execute_handler, fusion_clear_handler,
@@ -81,7 +82,8 @@ def create_application():
     application.add_handler(CallbackQueryHandler(profile_handler, pattern="^profile_\\d+$"))
     application.add_handler(CallbackQueryHandler(back_main, pattern="^back_main_\\d+$"))
     application.add_handler(CallbackQueryHandler(gacha_handler, pattern="^gacha_\\d+$"))
-    application.add_handler(CallbackQueryHandler(idols_handler, pattern=r"^idols_\d+_\d+$"))
+    application.add_handler(CallbackQueryHandler(idols_list_handler, pattern="^idols_list_\\d+_\\d+$"))
+    application.add_handler(CallbackQueryHandler(idols_handler, pattern="^idols_\\d+_\\d+$"))
     application.add_handler(CallbackQueryHandler(idol_submenu_handler, pattern=r"^ism_"))
     application.add_handler(CallbackQueryHandler(comeback_handler, pattern=r"^cb_\d+_\d+_\d+$"))
     application.add_handler(CallbackQueryHandler(train_menu_handler, pattern=r"^tr_menu_"))

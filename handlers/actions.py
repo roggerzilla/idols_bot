@@ -118,12 +118,12 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Premium visuals based on rarity
     rarity_themes = {
-        "C":  {"emoji": "⭐",       "border": "⚪", "title": "NUEVA ROOKIE"},
-        "B":  {"emoji": "⭐⭐",      "border": "🟢", "title": "RISING STAR"},
-        "A":  {"emoji": "⭐⭐⭐",     "border": "🔵", "title": "TALENTO ELITE"},
-        "S":  {"emoji": "🌟🌟🌟🌟",    "border": "🟣", "title": "SUPERSTAR"},
-        "SS": {"emoji": "💎💎💎💎💎", "border": "👑", "title": "DIOSA LEGENDARIA"},
-        "SSS":{"emoji": "👑👑👑👑👑👑", "border": "✨", "title": "ENTIDAD DIVINA"},
+        "C":  {"emoji": "⭐",       "border": "⚪"},
+        "B":  {"emoji": "⭐⭐",      "border": "🟢"},
+        "A":  {"emoji": "⭐⭐⭐",     "border": "🔵"},
+        "S":  {"emoji": "🌟🌟🌟🌟",    "border": "🟣"},
+        "SS": {"emoji": "💎💎💎💎💎", "border": "👑"},
+        "SSS":{"emoji": "👑👑👑👑👑👑", "border": "✨"},
     }
 
     theme = rarity_themes.get(new_idol["rarity"], rarity_themes["C"])
@@ -134,7 +134,7 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     u = get_user(uid)
 
     reveal_text = (
-        f"{theme['border']} <b>{theme['title']}</b> {theme['border']}\n"
+        f"{theme['border']} <b>RAREZA {new_idol['rarity']}</b> {theme['border']}\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"✨ <b>{name.upper()}</b>\n"
         f"🏢 {group}\n"
@@ -243,6 +243,7 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("💰 Ganar Dinero", callback_data=f"ism_money_{idol['id']}_{idx}_{uid}"),
             InlineKeyboardButton("🏷️ Vender", callback_data=f"sell_{idol['id']}_{idx}_{uid}")
         ],
+        [InlineKeyboardButton("📖 Ver Lista Completa", callback_data=f"idols_list_0_{uid}")],
         [InlineKeyboardButton("🔙 Menú Principal", callback_data=f"back_main_{uid}")],
     ]
 
@@ -285,7 +286,7 @@ async def idol_submenu_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         text = f"💰 <b>ECONOMÍA: {idol['name']}</b>\n━━━━━━━━━━━━━━━━━━\nGenera ingresos mediante lanzamientos musicales o giras mundiales."
         kb = [
             [InlineKeyboardButton("💿 Comeback", callback_data=f"cb_{iid}_{idx}_{owner_id}")],
-            [InlineKeyboardButton("✈️ Tour", callback_data=f"tour_{iid}_{idx}_{owner_id}")],
+            [InlineKeyboardButton("✈️ World Tour (12h)", callback_data=f"tour_{iid}_{idx}_{owner_id}")],
             [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]
         ]
     else:
@@ -295,6 +296,53 @@ async def idol_submenu_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 # ─── COMEBACK ───
+async def idols_list_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra una lista compacta de todas las idols del usuario con paginación"""
+    q = update.callback_query
+    parts = q.data.split("_")
+    page = int(parts[2])
+    owner_id = int(parts[3])
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ Esta no es tu lista.", show_alert=True); return
+
+    all_idols = get_user_idols(owner_id)
+    if not all_idols:
+        await q.answer("❌ No tienes idols.", show_alert=True); return
+
+    per_page = 10
+    total_pages = (len(all_idols) - 1) // per_page + 1
+    start_idx = page * per_page
+    end_idx = start_idx + per_page
+    page_idols = all_idols[start_idx:end_idx]
+
+    text = f"📖 <b>INVENTARIO DE IDOLS ({len(all_idols)})</b>\n"
+    text += f"Página {page + 1} de {total_pages}\n"
+    text += "━━━━━━━━━━━━━━━━━━\n\n"
+
+    kb = []
+    for i, idol in enumerate(page_idols):
+        global_idx = start_idx + i
+        text += f"{global_idx + 1}. <b>{idol['name']}</b> ({idol['rarity']})\n"
+        # Botón para ir a ver esta idol individualmente
+        kb.append([InlineKeyboardButton(f"👀 Ver #{global_idx + 1} {idol['name']}", callback_data=f"idols_{global_idx}_{owner_id}")])
+
+    text += "\n━━━━━━━━━━━━━━━━━━"
+
+    # Navegación de páginas
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton("◀️", callback_data=f"idols_list_{page-1}_{owner_id}"))
+    nav.append(InlineKeyboardButton(f"{page+1}/{total_pages}", callback_data="noop"))
+    if page < total_pages - 1:
+        nav.append(InlineKeyboardButton("▶️", callback_data=f"idols_list_{page+1}_{owner_id}"))
+    
+    kb.append(nav)
+    kb.append([InlineKeyboardButton("🔙 Volver", callback_data=f"idols_0_{owner_id}")])
+
+    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode=ParseMode.HTML)
+
+
 @handle_telegram_errors
 async def comeback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
