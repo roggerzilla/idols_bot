@@ -158,15 +158,17 @@ def get_user_idols(user_id: int) -> List[dict]:
     all_idols = get_all_idols()
     user_idols = [idol for idol in all_idols.values() if idol.get("user_id") == user_id]
     
-    # Auto-parche: Sincronizar file_id desde la plantilla si falta
+    # Auto-parche: Sincronizar file_id desde la plantilla si es distinto
     templates = get_all_templates()
-    updated = False
     for idol in user_idols:
         tid = str(idol.get("template_id"))
-        if tid in templates and templates[tid].get("file_id") and not idol.get("file_id"):
-            idol["file_id"] = templates[tid]["file_id"]
-            update_idol(idol["id"], file_id=idol["file_id"])
-            updated = True
+        if tid in templates:
+            t_file_id = templates[tid].get("file_id")
+            if t_file_id:
+                t_file_id = t_file_id.strip() # Limpiar espacios por si acaso
+                if idol.get("file_id") != t_file_id:
+                    idol["file_id"] = t_file_id
+                    update_idol(idol["id"], file_id=t_file_id)
             
     return user_idols
 
