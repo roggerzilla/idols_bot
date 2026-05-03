@@ -244,7 +244,7 @@ def train_nsfw(user_id: int, idol_id: int, stat_type: str) -> dict | str:
     deduct_points(user_id, TRAIN_NSFW_COST)
     idol["energy"] = max(0, idol["energy"] - 15)
 
-    # Boost random en el stat seleccionado
+    # Boost random entre 1 y 5 para evitar fiascos
     boost = random.randint(1, 5)
     current = idol.get(stat_type, 50)
     new_val = min(100, current + boost)
