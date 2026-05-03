@@ -344,6 +344,26 @@ async def idols_list_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 @handle_telegram_errors
+async def cancel_sale_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cancela una venta en el mercado"""
+    q = update.callback_query
+    parts = q.data.split("_")
+    # cancel_sale_{iid}_{idx}_{owner_id}
+    iid, idx, owner_id = int(parts[2]), int(parts[3]), int(parts[4])
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No es tu idol.", show_alert=True); return
+
+    from services.economy import cancel_sale
+    if cancel_sale(owner_id, iid):
+        await q.answer("✅ Venta cancelada.")
+        # Volver a la vista de la idol
+        await idols_handler(update, context)
+    else:
+        await q.answer("❌ Error al cancelar venta.", show_alert=True)
+
+
+@handle_telegram_errors
 async def comeback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     parts = q.data.split("_")
