@@ -579,46 +579,50 @@ def migrate_from_sqlite(sqlite_db_path: str = "idols_bot.db") -> bool:
         return False
 
 
-# ─── PRODUCING IDOLS (MAX 3) ────────────────────────────────────
+# ─── PRODUCING IDOLS (SEPARATE LIMITS) ─────────────────────────
 
-def get_producing_idols(user_id: int) -> List[dict]:
-    """Devuelve las máx 3 idols que están produciendo dinero, ordenadas por score productivo."""
-    from config import RARITY_CONFIG, MAX_PRODUCING_IDOLS
-
-    all_idols = get_user_idols(user_id)
-    eligible = []
-
-    for idol in all_idols:
-        status = idol.get("status", "active")
-        if status == "active" and not idol.get("for_sale", False):
-            busy = None
-            if idol.get("busy_until"):
-                try:
-                    busy_until = datetime.fromisoformat(idol["busy_until"])
-                    if datetime.utcnow() < busy_until:
-                        busy = status
-                except (ValueError, TypeError):
-                    pass
-            if not busy:
-                eligible.append(idol)
-
-    def idol_score(idol):
-        basic = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
-        nsfw = (idol.get("sensualidad", 50) + idol.get("puteria", 50) +
-                idol.get("firmeza", 50) + idol.get("habilidades_cama", 50) +
-                idol.get("fetiches", 50))
-        total = basic + nsfw
-        rarity_mult = RARITY_CONFIG.get(idol.get("rarity", "C"), {"mult": 1.0})["mult"]
-        return total * rarity_mult
-
-    eligible.sort(key=idol_score, reverse=True)
-    return eligible[:MAX_PRODUCING_IDOLS]
+def get_active_comeback_idols(user_id: int) -> List[dict]:
+    """Devuelve idols que están haciendo comeback ahora mismo."""
+    from datetime import datetime
+    idols = get_user_idols(user_id)
+    result = []
+    for idol in idols:
+        if idol.get("status") == "comeback" and idol.get("busy_until"):
+            try:
+                busy_until = datetime.fromisoformat(idol["busy_until"])
+                if datetime.utcnow() < busy_until:
+                    result.append(idol)
+            except (ValueError, TypeError):
+                pass
+    return result
 
 
-def is_idol_producing(user_id: int, idol_id: int) -> bool:
-    """Verifica si una idol específica está entre las 3 que producen dinero."""
-    producing = get_producing_idols(user_id)
-    return any(i["id"] == idol_id for i in producing)
+def get_active_tour_idols(user_id: int) -> List[dict]:
+    """Devuelve idols que están en tour ahora mismo."""
+    from datetime import datetime
+    idols = get_user_idols(user_id)
+    result = []
+    for idol in idols:
+        if idol.get("status") == "world_tour" and idol.get("busy_until"):
+            try:
+                busy_until = datetime.fromisoformat(idol["busy_until"])
+                if datetime.utcnow() < busy_until:
+                    result.append(idol)
+            except (ValueError, TypeError):
+                pass
+    return result
+
+
+def can_start_comeback(user_id: int) -> bool:
+    """True si el usuario tiene menos de 3 comebacks activos."""
+    from config import MAX_COMEBACK_IDOLS
+    return len(get_active_comeback_idols(user_id)) < MAX_COMEBACK_IDOLS
+
+
+def can_start_tour(user_id: int) -> bool:
+    """True si el usuario tiene menos de 3 tours activos."""
+    from config import MAX_TOUR_IDOLS
+    return len(get_active_tour_idols(user_id)) < MAX_TOUR_IDOLS
 
 
 # ─── TEMPLATES ──────────────────────────────────────────────────

@@ -15,6 +15,7 @@ def format_idol_card(idol, template, idx=None, total=None):
         "hiatus": ("😴", "Hiatus"),
         "world_tour": ("✈️", "En Tour"),
         "resting": ("😴", "Descansando"),
+        "comeback": ("💿", "Grabando Comeback"),
     }
 
     status_emoji, status_text = status_map.get(idol.get("status", "active"), ("❓", "Desconocido"))
@@ -46,6 +47,11 @@ def format_idol_card(idol, template, idx=None, total=None):
     if idol.get("for_sale", False):
         sale_text = f"\n🏷 EN VENTA: {idol.get('sale_price', 0)} pts"
 
+    comeback_text = ""
+    cr = idol.get("comeback_result")
+    if cr:
+        comeback_text = f"\n💿 Último comeback: {cr['type']} (+{cr['reward']} pts)"
+
     name = html.escape(idol.get("name", "Unknown").replace("_", " "))
     group = html.escape(idol.get("group_name", "Unknown Group").replace("_", " "))
     rarity = html.escape(idol.get("rarity", "C"))
@@ -69,6 +75,7 @@ def format_idol_card(idol, template, idx=None, total=None):
         f"━━━━━━━━━━━━━━━━━━\n"
         f"🔞 ❤️{sens} | 💋{put} | 🍑{firm} | 🔥{hab} | 😈{fet}"
         f"{sale_text}"
+        f"{comeback_text}"
     )
 
 

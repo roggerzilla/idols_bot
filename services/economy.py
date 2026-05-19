@@ -37,16 +37,15 @@ NSFW_STAT_NAMES = {
 
 def _check_idol_busy(idol: dict) -> str | None:
     """
-    Verifica si una idol está ocupada (tour o descanso).
+    Verifica si una idol está ocupada (tour, descanso o comeback).
     Si el tiempo ya pasó, la libera y devuelve None.
     Si sigue ocupada, devuelve el tipo de ocupación.
     """
     status = idol.get("status", "active")
-    if status not in ["world_tour", "resting"]:
+    if status not in ["world_tour", "resting", "comeback"]:
         return None
 
     if not idol.get("busy_until"):
-        # Si no tiene tiempo pero el estado dice ocupada, la liberamos por seguridad
         idol["status"] = "active"
         update_idol(idol["id"], **{"status": "active", "busy_until": None})
         return None
@@ -55,15 +54,34 @@ def _check_idol_busy(idol: dict) -> str | None:
     busy_until = datetime.fromisoformat(idol["busy_until"])
 
     if now >= busy_until:
-        # Ya terminó el tiempo
         if status == "world_tour":
-            # Calcular recompensa pasiva por el tour
             total_stats = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
             rarity_mult = RARITY_CONFIG.get(idol["rarity"], {"mult": 1.0})["mult"]
-            # Tour de 12h: ~2000-5000 pts base según stats y rareza
             tour_reward = int((total_stats * 10) * rarity_mult * random.uniform(0.8, 1.2))
             add_points(idol["user_id"], tour_reward)
-            print(f"✈️ Tour finalizado para {idol['name']}. Recompensa: {tour_reward} pts")
+            print(f"Tour finalizado para {idol['name']}. Recompensa: {tour_reward} pts")
+
+        elif status == "comeback":
+            morale_mult = max(0.1, idol.get("morale", 100) / 100.0)
+            total_stats = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
+            rarity_mult = RARITY_CONFIG.get(idol["rarity"], {"mult": 1.0})["mult"]
+            rng_factor = random.uniform(0.5, 1.5)
+            score = (total_stats / 300) * rarity_mult * rng_factor * (0.5 + 0.5 * morale_mult)
+
+            if score > 2.0:
+                result_type = "MEGA HIT"
+                reward = int(COMEBACK_BASE_COST * score * 2)
+            elif score > 1.0:
+                result_type = "HIT"
+                reward = int(COMEBACK_BASE_COST * score * 1.5)
+            else:
+                result_type = "FLOP"
+                reward = int(COMEBACK_BASE_COST * score * 0.5)
+
+            add_points(idol["user_id"], reward)
+            idol["comeback_result"] = {"type": result_type, "reward": reward, "score": round(score, 2)}
+            update_idol(idol["id"], **{"comeback_result": idol["comeback_result"]})
+            print(f"Comeback finalizado para {idol['name']}. {result_type}. Recompensa: {reward} pts")
 
         idol["status"] = "active"
         idol["busy_until"] = None
@@ -100,7 +118,7 @@ def process_maintenance(user_id: int) -> dict:
 
 
 def perform_comeback(user_id: int, idol_id: int) -> dict | str:
-    """Album release: costs points + energy, rewards based on stats/morale/rng"""
+    """Album release: costs points + energy, starts comeback with 30min delay"""
     idols = get_all_idols()
     if str(idol_id) not in idols:
         return "error"
@@ -132,40 +150,28 @@ def perform_comeback(user_id: int, idol_id: int) -> dict | str:
     if idol["status"] != "active":
         return "no_disponible"
 
-    # Verificar que está entre las 3 que producen dinero
-    from storage import is_idol_producing
-    if not is_idol_producing(user_id, idol_id):
-        return "no_produce"
+    # Verificar límite de 3 comebacks activos
+    from storage import can_start_comeback
+    if not can_start_comeback(user_id):
+        return "limite_comebacks"
 
     # Deduct costs
     deduct_points(user_id, COMEBACK_BASE_COST)
     idol["energy"] = max(0, idol["energy"] - 20)
-    update_idol(idol["id"], **{"energy": idol["energy"]})
 
-    # Calculate score
-    morale_mult = max(0.1, idol["morale"] / 100.0)
-    total_stats = idol["vocal"] + idol["dance"] + idol["rap"]
-    rarity_mult = RARITY_CONFIG[template["rarity"]]["mult"]
-    rng_factor = random.uniform(0.5, 1.5)
+    # Set comeback status with 30 min timer
+    from config import COMEBACK_DURATION_MINUTES
+    until = datetime.utcnow() + timedelta(minutes=COMEBACK_DURATION_MINUTES)
 
-    score = (total_stats / 300) * rarity_mult * rng_factor * (0.5 + 0.5 * morale_mult)
-
-    if score > 2.0:
-        result_type = "🏆 MEGA HIT"
-        reward = int(COMEBACK_BASE_COST * score * 2)
-    elif score > 1.0:
-        result_type = "💿 HIT"
-        reward = int(COMEBACK_BASE_COST * score * 1.5)
-    else:
-        result_type = "📉 FLOP"
-        reward = int(COMEBACK_BASE_COST * score * 0.5)
-
-    add_points(user_id, reward)
+    update_idol(idol["id"], **{
+        "energy": idol["energy"],
+        "status": "comeback",
+        "busy_until": until.isoformat()
+    })
 
     return {
-        "type": result_type,
-        "reward": reward,
-        "score": round(score, 2),
+        "type": "pending",
+        "until": until,
         "idol_name": template["name"]
     }
 
@@ -547,6 +553,11 @@ def start_world_tour(user_id: int, idol_id: int) -> dict | str:
 
     if idol["status"] != "active":
         return "no_disponible"
+
+    # Verificar límite de 3 tours activos
+    from storage import can_start_tour
+    if not can_start_tour(user_id):
+        return "limite_tours"
 
     # Lock for 12 hours
     until = now + timedelta(hours=12)

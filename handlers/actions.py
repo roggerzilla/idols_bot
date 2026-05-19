@@ -407,17 +407,22 @@ async def comeback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if r == "sin_energia":
         await q.answer("😴 Sin energía. Descansa a tu idol.", show_alert=True); return
     if r == "ocupada":
-        await q.answer("✈️ Idol en Tour. Espera a que regrese.", show_alert=True); return
-    if r == "no_produce":
-        await q.answer("❌ Esta idol no está entre las 3 que producen dinero.", show_alert=True); return
+        await q.answer("✈️ Idol ocupada. Espera a que regrese.", show_alert=True); return
+    if r == "limite_comebacks":
+        await q.answer("❌ Ya tienes 3 comebacks activos. Espera a que terminen.", show_alert=True); return
     if r == "no_disponible":
         await q.answer("❌ Idol no disponible (hiatus o mercado).", show_alert=True); return
     if r == "error" or r == "not_owner":
         await q.answer("❌ Error.", show_alert=True); return
 
+    until = r['until'].strftime("%H:%M")
     await q.edit_message_text(
-        f"💿 <b>COMEBACK de {r['idol_name']}</b>\n━━━━━━━━━━━━━━━━━━\n"
-        f"Resultado: <b>{r['type']}</b>\n📈 Score: <code>{r['score']}</code>\n💰 Ganancia: <code>+{r['reward']} pts</code>",
+        f"💿 <b>COMEBACK INICIADO: {r['idol_name']}</b>\n━━━━━━━━━━━━━━━━━━\n"
+        f"Tu idol está grabando su nuevo álbum...\n\n"
+        f"⏳ Resultados a las <code>{until} UTC</code> (30 min)\n"
+        f"💰 Costo pagado: <code>500 pts</code>\n"
+        f"⚡ Energía: <code>-20</code>\n\n"
+        f"<i>Los resultados se calcularán automáticamente cuando termine.</i>",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]) ,
         parse_mode="HTML")
 
@@ -638,11 +643,12 @@ async def tour_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     r = start_world_tour(q.from_user.id, iid)
 
     if isinstance(r, dict):
-        # Show unlock time
         until = r['until'].strftime("%H:%M")
         t = f"✈️ *TOUR INICIADO*\n\nTu idol ha comenzado una gira mundial. Generará beneficios pasivos y regresará a las `{until} UTC`."
     elif r == "ya_en_tour":
         t = "✈️ Esta idol ya está en medio de un tour."
+    elif r == "limite_tours":
+        t = "❌ Ya tienes 3 tours activos. Espera a que alguno termine."
     else:
         t = "❌ No disponible para tour (debe estar activa y no en el mercado)."
 
@@ -789,8 +795,6 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
     idx = max(0, min(idx, len(all_idols) - 1))
     idol = all_idols[idx]
 
-    from storage import is_idol_producing
-
     event = get_event(eid)
     is_charity = event.get("event_type") == "CHARITY" if event else False
     
@@ -801,12 +805,8 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
                   idol.get("firmeza", 50) +
                   idol.get("habilidades_cama", 50) + idol.get("fetiches", 50))
 
-    producing = is_idol_producing(uid, idol["id"])
-    prod_badge = "🟢" if producing else "🔴"
-
     card_text = (f"{title}\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
-                f"{prod_badge} {'PRODUCE DINERO' if producing else 'NO PRODUCE (máx 3)'}\n"
                 f"✨ <b>{idol['name'].replace('_', ' ').upper()}</b> {idol.get('group_name', '')}\n"
                 f"📊 Rareza: {'⭐' * (['C','B','A','S','SS','SSS'].index(idol['rarity']) + 1)} ({idol['rarity']})\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
@@ -897,12 +897,6 @@ async def use_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TYPE)
                       f"━━━━━━━━━━━━━━━━━━\n"
                       f"✨ <i>Tu idol se siente renovada y lista para brillar en el escenario.</i>")
     else:
-        # Verificar que está entre las 3 que producen dinero
-        from storage import is_idol_producing
-        if not is_idol_producing(q.from_user.id, iid):
-            await q.answer("❌ Esta idol no está entre las 3 que producen dinero.", show_alert=True)
-            return
-
         # Calcular recompensa NSFW
         reward_data = calculate_event_reward(q.from_user.id, iid)
         if not reward_data:
@@ -1051,8 +1045,6 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.answer("❌ No tienes ninguna idol para participar.", show_alert=True)
         return
 
-    from storage import is_idol_producing
-
     event = get_event(eid)
     is_charity = event.get("event_type") == "CHARITY" if event else False
     
@@ -1065,12 +1057,8 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                   idol.get("firmeza", 50) +
                   idol.get("habilidades_cama", 50) + idol.get("fetiches", 50))
 
-    producing = is_idol_producing(uid, idol["id"])
-    prod_badge = "🟢" if producing else "🔴"
-
     text = (f"{title}\n"
             f"━━━━━━━━━━━━━━━━━━\n"
-            f"{prod_badge} {'PRODUCE DINERO' if producing else 'NO PRODUCE (máx 3)'}\n"
             f"✨ <b>{idol['name'].replace('_', ' ').upper()}</b> {idol.get('group_name', '')}\n"
             f"📊 Rareza: {'⭐' * (['C','B','A','S','SS','SSS'].index(idol['rarity']) + 1)} ({idol['rarity']})\n"
             f"━━━━━━━━━━━━━━━━━━\n"
