@@ -16,12 +16,20 @@ DATABASE_URL = f"sqlite+aiosqlite:///{os.path.join(BASE_DIR, 'idols_bot.db')}"
 # Game Constants
 CONTRACT_DURATION_DAYS = 7
 MAINTENANCE_COST_BASE = 50
+MAINTENANCE_COST_BY_RARITY = {
+    'C': 50,
+    'B': 100,
+    'A': 250,
+    'S': 500,
+    'SS': 1000,
+}
 COMEBACK_BASE_COST = 500
 TRAIN_COST = 200
 TRAIN_NSFW_COST = 200
 GREET_ENERGY_COST = 10
 REST_MORALE_COST = 5
 REST_DURATION_HOURS = 2
+MAX_PRODUCING_IDOLS = 3
 
 # Rarity Multipliers
 RARITY_CONFIG = {

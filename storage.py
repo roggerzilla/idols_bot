@@ -52,26 +52,23 @@ def get_user(user_id: int) -> Optional[dict]:
 
 
 def process_maintenance(user_id: int) -> dict:
-    """Dedica fees de mantenimiento; pone idols en hiatus si broke"""
-    from config import MAINTENANCE_COST_BASE
+    """Deduce fees de mantenimiento (por rareza); pone idols en hiatus si broke"""
+    from config import MAINTENANCE_COST_BY_RARITY
 
     user = get_user(user_id)
     if not user:
         return {"success": False, "error": "user_not_found"}
 
-    # Obtener todas las idols del usuario
     idols = get_user_idols(user_id)
-    total_fee = len(idols) * MAINTENANCE_COST_BASE
+    total_fee = sum(MAINTENANCE_COST_BY_RARITY.get(idol.get("rarity", "C"), 50) for idol in idols)
 
     if user["points"] >= total_fee:
         deduct_points(user_id, total_fee)
         return {"success": True, "fee_paid": total_fee}
     else:
-        # Poner todas las idols en hiatus
         for idol in idols:
             update_idol(idol["id"], status="hiatus")
 
-        # Passive energy recovery (+10 per day, capped at 100)
         for idol in idols:
             idol["energy"] = min(100, idol["energy"] + 10)
             update_idol(idol["id"], **{"energy": idol["energy"]})
@@ -216,12 +213,11 @@ def create_idol(
         "file_id": file_id,
         "morale": 100,
         "energy": 100,
-        # NSFW Stats
-        "sensitivity": 50,
-        "coqueteo": 50,
-        "firmeza_culo": 50,
+        "sensualidad": 50,
+        "puteria": 50,
+        "firmeza": 50,
         "habilidades_cama": 50,
-        "kinky": 50,
+        "fetiches": 50,
         "status": "active",
         "busy_until": None,
         "contract_expiry": expiry.isoformat(),
@@ -420,9 +416,9 @@ def calculate_event_reward(user_id: int, idol_id: int) -> dict | None:
 
     # Stats básicos + NSFW
     basic_stats = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
-    nsfw_stats = (idol.get("sensitivity", 50) + idol.get("coqueteo", 50) +
-                  idol.get("firmeza_culo", 50) +
-                  idol.get("habilidades_cama", 50) + idol.get("kinky", 50))
+    nsfw_stats = (idol.get("sensualidad", 50) + idol.get("puteria", 50) +
+                  idol.get("firmeza", 50) +
+                  idol.get("habilidades_cama", 50) + idol.get("fetiches", 50))
     total_stats = basic_stats + nsfw_stats
 
     # Base points según rareza
@@ -514,12 +510,11 @@ def migrate_from_sqlite(sqlite_db_path: str = "idols_bot.db") -> bool:
                 "rap": rap or base_rap,
                 "morale": morale or 100,
                 "energy": energy or 100,
-                # NSFW Stats con default 50
-                "sensitivity": 50,
-                "coqueteo": 50,
-                "firmeza_culo": 50,
+                "sensualidad": 50,
+                "puteria": 50,
+                "firmeza": 50,
                 "habilidades_cama": 50,
-                "kinky": 50,
+                "fetiches": 50,
                 "status": status or "active",
                 "busy_until": busy_until,
                 "contract_expiry": contract_expiry,
@@ -582,6 +577,48 @@ def migrate_from_sqlite(sqlite_db_path: str = "idols_bot.db") -> bool:
         print(f"❌ Error en migración: {e}")
         conn.close()
         return False
+
+
+# ─── PRODUCING IDOLS (MAX 3) ────────────────────────────────────
+
+def get_producing_idols(user_id: int) -> List[dict]:
+    """Devuelve las máx 3 idols que están produciendo dinero, ordenadas por score productivo."""
+    from config import RARITY_CONFIG, MAX_PRODUCING_IDOLS
+
+    all_idols = get_user_idols(user_id)
+    eligible = []
+
+    for idol in all_idols:
+        status = idol.get("status", "active")
+        if status == "active" and not idol.get("for_sale", False):
+            busy = None
+            if idol.get("busy_until"):
+                try:
+                    busy_until = datetime.fromisoformat(idol["busy_until"])
+                    if datetime.utcnow() < busy_until:
+                        busy = status
+                except (ValueError, TypeError):
+                    pass
+            if not busy:
+                eligible.append(idol)
+
+    def idol_score(idol):
+        basic = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
+        nsfw = (idol.get("sensualidad", 50) + idol.get("puteria", 50) +
+                idol.get("firmeza", 50) + idol.get("habilidades_cama", 50) +
+                idol.get("fetiches", 50))
+        total = basic + nsfw
+        rarity_mult = RARITY_CONFIG.get(idol.get("rarity", "C"), {"mult": 1.0})["mult"]
+        return total * rarity_mult
+
+    eligible.sort(key=idol_score, reverse=True)
+    return eligible[:MAX_PRODUCING_IDOLS]
+
+
+def is_idol_producing(user_id: int, idol_id: int) -> bool:
+    """Verifica si una idol específica está entre las 3 que producen dinero."""
+    producing = get_producing_idols(user_id)
+    return any(i["id"] == idol_id for i in producing)
 
 
 # ─── TEMPLATES ──────────────────────────────────────────────────

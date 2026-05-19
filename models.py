@@ -46,11 +46,11 @@ class UserIdol(Base):
     energy = Column(Integer, default=100)
 
     # NSFW Stats
-    sensitivity = Column(Integer, default=50)  # Sensibilidad
-    coqueteo = Column(Integer, default=50)     # Coqueteo
-    firmeza_culo = Column(Integer, default=50) # Firmeza del culo
-    habilidades_cama = Column(Integer, default=50) # Habilidades en la cama
-    kinky = Column(Integer, default=50)        # Kinky
+    sensualidad = Column(Integer, default=50)
+    puteria = Column(Integer, default=50)
+    firmeza = Column(Integer, default=50)
+    habilidades_cama = Column(Integer, default=50)
+    fetiches = Column(Integer, default=50)
     
     status = Column(Enum(IdolStatus), default=IdolStatus.ACTIVE)
     busy_until = Column(DateTime, nullable=True)

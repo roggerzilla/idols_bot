@@ -52,19 +52,19 @@ def handle_telegram_errors(func):
 
 # NSFW Stat Emojis
 NSFW_STAT_EMOJIS = {
-    "sensitivity": "❤️",
-    "coqueteo": "💕",
-    "firmeza_culo": "🍑",
+    "sensualidad": "❤️",
+    "puteria": "💋",
+    "firmeza": "🍑",
     "habilidades_cama": "🔥",
-    "kinky": "😈"
+    "fetiches": "😈"
 }
 
 NSFW_STAT_NAMES = {
-    "sensitivity": "Sensibilidad",
-    "coqueteo": "Coqueteo",
-    "firmeza_culo": "Firmeza del Culo",
+    "sensualidad": "Sensualidad",
+    "puteria": "Putería",
+    "firmeza": "Firmeza culo/tetas",
     "habilidades_cama": "Habilidades en la Cama",
-    "kinky": "Kinky"
+    "fetiches": "Fetiches"
 }
 
 # ─── GACHA ───
@@ -408,6 +408,8 @@ async def comeback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.answer("😴 Sin energía. Descansa a tu idol.", show_alert=True); return
     if r == "ocupada":
         await q.answer("✈️ Idol en Tour. Espera a que regrese.", show_alert=True); return
+    if r == "no_produce":
+        await q.answer("❌ Esta idol no está entre las 3 que producen dinero.", show_alert=True); return
     if r == "no_disponible":
         await q.answer("❌ Idol no disponible (hiatus o mercado).", show_alert=True); return
     if r == "error" or r == "not_owner":
@@ -787,18 +789,24 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
     idx = max(0, min(idx, len(all_idols) - 1))
     idol = all_idols[idx]
 
+    from storage import is_idol_producing
+
     event = get_event(eid)
     is_charity = event.get("event_type") == "CHARITY" if event else False
     
     title = "💖 SELECCIÓN BENÉFICA" if is_charity else "🔞 SELECCIONA IDOL PARA EVENTO"
     
     total_basic = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
-    total_nsfw = (idol.get("sensitivity", 50) + idol.get("coqueteo", 50) +
-                  idol.get("firmeza_culo", 50) +
-                  idol.get("habilidades_cama", 50) + idol.get("kinky", 50))
+    total_nsfw = (idol.get("sensualidad", 50) + idol.get("puteria", 50) +
+                  idol.get("firmeza", 50) +
+                  idol.get("habilidades_cama", 50) + idol.get("fetiches", 50))
+
+    producing = is_idol_producing(uid, idol["id"])
+    prod_badge = "🟢" if producing else "🔴"
 
     card_text = (f"{title}\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
+                f"{prod_badge} {'PRODUCE DINERO' if producing else 'NO PRODUCE (máx 3)'}\n"
                 f"✨ <b>{idol['name'].replace('_', ' ').upper()}</b> {idol.get('group_name', '')}\n"
                 f"📊 Rareza: {'⭐' * (['C','B','A','S','SS','SSS'].index(idol['rarity']) + 1)} ({idol['rarity']})\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
@@ -806,8 +814,8 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
                 f"💪 Stats Básicos: <code>{total_basic}</code>\n\n")
 
     if not is_charity:
-        card_text += (f"❤️ {idol.get('sensitivity', 50)} | 💕 {idol.get('coqueteo', 50)} | 🍑 {idol.get('firmeza_culo', 50)}\n"
-                    f"🔥 {idol.get('habilidades_cama', 50)} | 😈 {idol.get('kinky', 50)}\n"
+        card_text += (f"❤️ {idol.get('sensualidad', 50)} | 💋 {idol.get('puteria', 50)} | 🍑 {idol.get('firmeza', 50)}\n"
+                    f"🔥 {idol.get('habilidades_cama', 50)} | 😈 {idol.get('fetiches', 50)}\n"
                     f"💪 Stats NSFW: <code>{total_nsfw}</code>\n\n"
                     f"📈 Total Stats: <code>{total_basic + total_nsfw}</code>")
     else:
@@ -889,6 +897,12 @@ async def use_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TYPE)
                       f"━━━━━━━━━━━━━━━━━━\n"
                       f"✨ <i>Tu idol se siente renovada y lista para brillar en el escenario.</i>")
     else:
+        # Verificar que está entre las 3 que producen dinero
+        from storage import is_idol_producing
+        if not is_idol_producing(q.from_user.id, iid):
+            await q.answer("❌ Esta idol no está entre las 3 que producen dinero.", show_alert=True)
+            return
+
         # Calcular recompensa NSFW
         reward_data = calculate_event_reward(q.from_user.id, iid)
         if not reward_data:
@@ -943,31 +957,31 @@ async def nsfw_info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     idol = all_idols[str(iid)]
 
-    total_nsfw = (idol.get("sensitivity", 50) + idol.get("coqueteo", 50) +
-                  idol.get("firmeza_culo", 50) +
-                  idol.get("habilidades_cama", 50) + idol.get("kinky", 50))
+    total_nsfw = (idol.get("sensualidad", 50) + idol.get("puteria", 50) +
+                  idol.get("firmeza", 50) +
+                  idol.get("habilidades_cama", 50) + idol.get("fetiches", 50))
 
     text = (f"🔞 <b>STATS NSFW de {idol['name'].replace('_', ' ').upper()}</b>\n"
             f"━━━━━━━━━━━━━━━━━━\n"
-            f"{NSFW_STAT_EMOJIS['sensitivity']} Sensibilidad: <code>{idol.get('sensitivity', 50)}/100</code>\n"
-            f"{NSFW_STAT_EMOJIS['coqueteo']} Coqueteo: <code>{idol.get('coqueteo', 50)}/100</code>\n"
-            f"{NSFW_STAT_EMOJIS['firmeza_culo']} Firmeza Culo: <code>{idol.get('firmeza_culo', 50)}/100</code>\n"
+            f"{NSFW_STAT_EMOJIS['sensualidad']} Sensualidad: <code>{idol.get('sensualidad', 50)}/100</code>\n"
+            f"{NSFW_STAT_EMOJIS['puteria']} Putería: <code>{idol.get('puteria', 50)}/100</code>\n"
+            f"{NSFW_STAT_EMOJIS['firmeza']} Firmeza culo/tetas: <code>{idol.get('firmeza', 50)}/100</code>\n"
             f"{NSFW_STAT_EMOJIS['habilidades_cama']} Habilidades Cama: <code>{idol.get('habilidades_cama', 50)}/100</code>\n"
-            f"{NSFW_STAT_EMOJIS['kinky']} Kinky: <code>{idol.get('kinky', 50)}/100</code>\n\n"
+            f"{NSFW_STAT_EMOJIS['fetiches']} Fetiches: <code>{idol.get('fetiches', 50)}/100</code>\n\n"
             f"💪 Total NSFW: <code>{total_nsfw}/500</code>")
 
     kb = [
         [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")],
-        [InlineKeyboardButton(f"🔞 Entrenar {NSFW_STAT_NAMES['sensitivity']}",
-                              callback_data=f"nsfw_tr_sensitivity_{iid}_{idx}_{owner_id}")],
-        [InlineKeyboardButton(f"🔞 Entrenar {NSFW_STAT_NAMES['coqueteo']}",
-                              callback_data=f"nsfw_tr_coqueteo_{iid}_{idx}_{owner_id}")],
-        [InlineKeyboardButton(f"🔞 Entrenar {NSFW_STAT_NAMES['firmeza_culo']}",
-                              callback_data=f"nsfw_tr_firmeza_culo_{iid}_{idx}_{owner_id}")],
+        [InlineKeyboardButton(f"🔞 Entrenar {NSFW_STAT_NAMES['sensualidad']}",
+                              callback_data=f"nsfw_tr_sensualidad_{iid}_{idx}_{owner_id}")],
+        [InlineKeyboardButton(f"🔞 Entrenar {NSFW_STAT_NAMES['puteria']}",
+                              callback_data=f"nsfw_tr_puteria_{iid}_{idx}_{owner_id}")],
+        [InlineKeyboardButton(f"🔞 Entrenar {NSFW_STAT_NAMES['firmeza']}",
+                              callback_data=f"nsfw_tr_firmeza_{iid}_{idx}_{owner_id}")],
         [InlineKeyboardButton(f"🔞 Entrenar {NSFW_STAT_NAMES['habilidades_cama']}",
                               callback_data=f"nsfw_tr_habilidades_cama_{iid}_{idx}_{owner_id}")],
-        [InlineKeyboardButton(f"🔞 Entrenar {NSFW_STAT_NAMES['kinky']}",
-                              callback_data=f"nsfw_tr_kinky_{iid}_{idx}_{owner_id}")],
+        [InlineKeyboardButton(f"🔞 Entrenar {NSFW_STAT_NAMES['fetiches']}",
+                              callback_data=f"nsfw_tr_fetiches_{iid}_{idx}_{owner_id}")],
     ]
 
     await q.edit_message_text(
@@ -1037,20 +1051,26 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.answer("❌ No tienes ninguna idol para participar.", show_alert=True)
         return
 
+    from storage import is_idol_producing
+
     event = get_event(eid)
     is_charity = event.get("event_type") == "CHARITY" if event else False
     
     title = "💖 SELECCIÓN BENÉFICA" if is_charity else "🔞 SELECCIONA IDOL PARA EVENTO"
     
-    idx = 0 # Default for global claim
+    idx = 0
     idol = all_idols[idx]
     total_basic = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
-    total_nsfw = (idol.get("sensitivity", 50) + idol.get("coqueteo", 50) +
-                  idol.get("firmeza_culo", 50) +
-                  idol.get("habilidades_cama", 50) + idol.get("kinky", 50))
+    total_nsfw = (idol.get("sensualidad", 50) + idol.get("puteria", 50) +
+                  idol.get("firmeza", 50) +
+                  idol.get("habilidades_cama", 50) + idol.get("fetiches", 50))
+
+    producing = is_idol_producing(uid, idol["id"])
+    prod_badge = "🟢" if producing else "🔴"
 
     text = (f"{title}\n"
             f"━━━━━━━━━━━━━━━━━━\n"
+            f"{prod_badge} {'PRODUCE DINERO' if producing else 'NO PRODUCE (máx 3)'}\n"
             f"✨ <b>{idol['name'].replace('_', ' ').upper()}</b> {idol.get('group_name', '')}\n"
             f"📊 Rareza: {'⭐' * (['C','B','A','S','SS','SSS'].index(idol['rarity']) + 1)} ({idol['rarity']})\n"
             f"━━━━━━━━━━━━━━━━━━\n"
@@ -1058,8 +1078,8 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💪 Stats Básicos: <code>{total_basic}</code>\n\n")
 
     if not is_charity:
-        text += (f"❤️ {idol.get('sensitivity', 50)} | 💕 {idol.get('coqueteo', 50)} | 🍑 {idol.get('firmeza_culo', 50)}\n"
-                f"🔥 {idol.get('habilidades_cama', 50)} | 😈 {idol.get('kinky', 50)}\n"
+        text += (f"❤️ {idol.get('sensualidad', 50)} | 💋 {idol.get('puteria', 50)} | 🍑 {idol.get('firmeza', 50)}\n"
+                f"🔥 {idol.get('habilidades_cama', 50)} | 😈 {idol.get('fetiches', 50)}\n"
                 f"💪 Stats NSFW: <code>{total_nsfw}</code>\n\n"
                 f"📈 Total Stats: <code>{total_basic + total_nsfw}</code>")
     else:
@@ -1133,15 +1153,16 @@ async def help_game_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "━━━━━━━━━━━━━━━━━━\n"
         "🎤 <b>HABILIDADES Y ÉXITO</b>\n"
         "• <b>Talento (V, D, R):</b> Vocal, Dance y Rap. Determinan el éxito de los <b>Comebacks</b>. Un MEGA HIT puede darte x2 de recompensa.\n"
-        "• <b>Stats NSFW:</b> Sensibilidad, Coqueteo, Firmeza, Cama y Kinky. Son vitales para los <b>Eventos Globales</b>. A mayor nivel, ¡contratos más millonarios!\n\n"
+        "• <b>Stats NSFW:</b> Sensualidad, Putería, Firmeza culo/tetas, Cama y Fetiches. Son vitales para los <b>Eventos Globales</b>. A mayor nivel, ¡contratos más millonarios!\n\n"
         "💎 <b>RAREZAS Y MULTIPLICADORES</b>\n"
         "• <code>C</code> (40%): x1.0 | <code>B</code> (35%): x1.5\n"
         "• <code>A</code> (18%): x2.5 | <code>S</code> (6%): x5.0\n"
         "• <code>SS</code> (1%): x10.0 (¡Diosas Legendarias!)\n\n"
         "💸 <b>ECONOMÍA Y GASTOS</b>\n"
-        "• <b>Mantenimiento:</b> Cada 24h pagas 50 pts por cada idol. Si no tienes puntos, tus idols entrarán en <b>Hiatus</b> (se pausan y no ganan nada).\n"
+        "• <b>Mantenimiento:</b> Cada 24h pagas según rareza: C=50, B=100, A=250, S=500, SS=1000 pts. Si no tienes puntos, tus idols entrarán en <b>Hiatus</b> (se pausan y no ganan nada).\n"
+        "• <b>Máx 3 produciendo:</b> Solo las 3 idols con mejor score generan ingresos en eventos y comebacks. Las demás no pueden trabajar.\n"
         "• <b>Energía (⚡):</b> Se gasta al trabajar. Si baja de 20, no podrán hacer Comebacks. Recupérala con 'Descansar'.\n"
-        "• <b>Moral (❤️):</b> Afecta el Score. Si es baja, tus canciones serán un FLOP. Súbela con 'Saludar'.\n\n"
+        "• <b>Moral (❤️):</b> Afecta el Score. Si es baja, tus canciones serán un FLOP. Súbela con 'Interactuar'.\n\n"
         "🏪 <b>MERCADO Y TOURS</b>\n"
         "• Puedes vender idols al precio que quieras. El mercado es global entre todos los jugadores.\n"
         "• Los <b>World Tours</b> duran 12h y son la mejor forma de ganar puntos mientras no estás conectado.\n"

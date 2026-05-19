@@ -19,19 +19,19 @@ from config import (
 
 # NSFW Stat Emojis
 NSFW_STAT_EMOJIS = {
-    "sensitivity": "❤️",
-    "coqueteo": "💕",
-    "firmeza_culo": "🍑",
+    "sensualidad": "❤️",
+    "puteria": "💋",
+    "firmeza": "🍑",
     "habilidades_cama": "🔥",
-    "kinky": "😈"
+    "fetiches": "😈"
 }
 
 NSFW_STAT_NAMES = {
-    "sensitivity": "Sensibilidad",
-    "coqueteo": "Coqueteo",
-    "firmeza_culo": "Firmeza del Culo",
+    "sensualidad": "Sensualidad",
+    "puteria": "Putería",
+    "firmeza": "Firmeza culo/tetas",
     "habilidades_cama": "Habilidades en la Cama",
-    "kinky": "Kinky"
+    "fetiches": "Fetiches"
 }
 
 
@@ -131,6 +131,11 @@ def perform_comeback(user_id: int, idol_id: int) -> dict | str:
 
     if idol["status"] != "active":
         return "no_disponible"
+
+    # Verificar que está entre las 3 que producen dinero
+    from storage import is_idol_producing
+    if not is_idol_producing(user_id, idol_id):
+        return "no_produce"
 
     # Deduct costs
     deduct_points(user_id, COMEBACK_BASE_COST)
@@ -639,9 +644,9 @@ def calculate_event_reward(user_id: int, idol_id: int) -> dict | None:
 
     # Stats básicos y NSFW
     basic_stats = idol.get("vocal", 0) + idol.get("dance", 0) + idol.get("rap", 0)
-    nsfw_stats = (idol.get("sensitivity", 50) + idol.get("coqueteo", 50) +
-                  idol.get("firmeza_culo", 50) + idol.get("habilidades_cama", 50) +
-                  idol.get("kinky", 50))
+    nsfw_stats = (idol.get("sensualidad", 50) + idol.get("puteria", 50) +
+                  idol.get("firmeza", 50) + idol.get("habilidades_cama", 50) +
+                  idol.get("fetiches", 50))
     
     # En eventos NSFW, las stats NSFW pesan 3 veces más que las básicas
     weighted_total = (basic_stats * 0.5) + (nsfw_stats * 1.5)

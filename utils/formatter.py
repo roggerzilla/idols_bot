@@ -52,11 +52,11 @@ def format_idol_card(idol, template, idx=None, total=None):
     era = html.escape(idol.get("era", "Standard").replace("_", " "))
 
     # NSFW Stats
-    sens = idol.get("sensitivity", 50)
-    coq = idol.get("coqueteo", 50)
-    firm = idol.get("firmeza_culo", 50)
+    sens = idol.get("sensualidad", 50)
+    put = idol.get("puteria", 50)
+    firm = idol.get("firmeza", 50)
     hab = idol.get("habilidades_cama", 50)
-    kin = idol.get("kinky", 50)
+    fet = idol.get("fetiches", 50)
 
     return (
         f"{header}"
@@ -67,7 +67,7 @@ def format_idol_card(idol, template, idx=None, total=None):
         f"❤️ Moral: {morale}/100\n"
         f"⚡ Energía: {energy}/100\n"
         f"━━━━━━━━━━━━━━━━━━\n"
-        f"🔞 ❤️{sens} | 💕{coq} | 🍑{firm} | 🔥{hab} | 😈{kin}"
+        f"🔞 ❤️{sens} | 💋{put} | 🍑{firm} | 🔥{hab} | 😈{fet}"
         f"{sale_text}"
     )
 
