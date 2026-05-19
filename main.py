@@ -8,6 +8,7 @@ import random
 import time
 import sys
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from telegram.request import HTTPXRequest
 from config import TELEGRAM_TOKEN
 from handlers.commands import start, profile_handler, back_main, admin_evento, help_command, admin_personal_event, admin_give_points, admin_give_idol, my_id_command, get_photo_id_handler
 from handlers.actions import (
@@ -59,9 +60,12 @@ async def post_init(application):
 
 def create_application():
     """Crea y configura una nueva instancia de la aplicación"""
+    request = HTTPXRequest(proxy_url="http://proxy.server:3128")
+
     application = (
         ApplicationBuilder()
         .token(TELEGRAM_TOKEN)
+        .request(request)
         .connect_timeout(30.0)
         .read_timeout(30.0)
         .write_timeout(30.0)
