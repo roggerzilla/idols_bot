@@ -48,7 +48,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
          InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data=f"gacha_{user_tg.id}")],
         [InlineKeyboardButton("🏪 Mercado", callback_data=f"market_0_{user_tg.id}"),
          InlineKeyboardButton("🧪 Fusión", callback_data=f"fusion_main_{user_tg.id}")],
-        [InlineKeyboardButton("💰 Ganar Puntos", callback_data=f"help_pts_{user_tg.id}")],
+        [InlineKeyboardButton("🧬 Evolucionar", callback_data=f"evo_main_{user_tg.id}"),
+         InlineKeyboardButton("💰 Ganar Puntos", callback_data=f"help_pts_{user_tg.id}")],
     ]
 
     # Retry logic for flaky PythonAnywhere proxy
@@ -320,7 +321,8 @@ async def back_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
          InlineKeyboardButton("🎰 Gacha (500 pts)", callback_data=f"gacha_{q.from_user.id}")],
         [InlineKeyboardButton("🏪 Mercado", callback_data=f"market_0_{q.from_user.id}"),
          InlineKeyboardButton("🧪 Fusión", callback_data=f"fusion_main_{q.from_user.id}")],
-        [InlineKeyboardButton("💰 Ganar Puntos", callback_data=f"help_pts_{q.from_user.id}")],
+        [InlineKeyboardButton("🧬 Evolucionar", callback_data=f"evo_main_{q.from_user.id}"),
+         InlineKeyboardButton("💰 Ganar Puntos", callback_data=f"help_pts_{q.from_user.id}")],
     ]
 
     for _ in range(3):

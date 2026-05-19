@@ -34,6 +34,33 @@ MAX_COMEBACK_IDOLS = 3
 MAX_TOUR_IDOLS = 1
 COMEBACK_DURATION_MINUTES = 30
 
+# Evolution Config
+NEXT_RARITY = {
+    'C': 'B',
+    'B': 'A',
+    'A': 'S',
+    'S': 'SS',
+    'SS': 'SSS',
+}
+EVOLUTION_COST = {
+    'C': 500,
+    'B': 1500,
+    'A': 4000,
+    'S': 10000,
+    'SS': 25000,
+}
+EVOLUTION_SUCCESS_RATE = {
+    'C': 0.90,
+    'B': 0.75,
+    'A': 0.60,
+    'S': 0.45,
+    'SS': 0.30,
+}
+ALL_STATS_KEYS = [
+    'vocal', 'dance', 'rap',
+    'sensualidad', 'puteria', 'firmeza', 'habilidades_cama', 'fetiches',
+]
+
 # Rarity Multipliers
 RARITY_CONFIG = {
     'C':  {'mult': 1.0,  'chance': 0.40},

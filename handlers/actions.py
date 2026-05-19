@@ -8,6 +8,7 @@ from telegram.constants import ParseMode
 import random
 import asyncio
 import time
+import html
 from datetime import datetime
 from storage import (
     get_user, update_user, add_points, deduct_points,
@@ -1384,6 +1385,356 @@ async def fusion_clear_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     context.user_data["fusion_slots"] = [None, None, None]
     await q.answer("🧹 Slots limpiados.")
     await fusion_menu_handler(update, context, manual_owner_id=owner_id)
+
+
+# ─── EVOLUTION SYSTEM ───
+from services.economy import evolve_idol, check_all_stats_100
+from config import NEXT_RARITY, EVOLUTION_COST, EVOLUTION_SUCCESS_RATE
+
+
+@handle_telegram_errors
+async def evolve_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE, manual_owner_id=None):
+    """Muestra el menú de evolución con 2 slots"""
+    q = update.callback_query
+    owner_id = manual_owner_id or int(q.data.split("_")[2])
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No es tu menú.", show_alert=True)
+        return
+
+    if "evolve_slots" not in context.user_data:
+        context.user_data["evolve_slots"] = [None, None]
+
+    slots = context.user_data["evolve_slots"]
+
+    text = "🧬 <b>EVOLUCIÓN DE IDOLS</b>\n━━━━━━━━━━━━━━━━━━\n"
+    text += "Combina 2 idols del mismo nombre (era diferente) con stats al 100 para subir de rareza.\n\n"
+
+    slot_emojis = ["1️⃣", "2️⃣"]
+
+    for i, idol in enumerate(slots):
+        if idol:
+            all_stats_ok = check_all_stats_100(idol)
+            stats_icon = "✅" if all_stats_ok else "❌"
+            name = html.escape(idol.get("name", "???").replace("_", " "))
+            era = html.escape(idol.get("era", "Standard"))
+            rarity = html.escape(idol.get("rarity", "C"))
+            text += f"{slot_emojis[i]} {stats_icon} <b>{name}</b> ({era}) [{rarity}]\n"
+
+            if not all_stats_ok:
+                text += "   ⚠️ No tiene todas las stats al 100\n"
+        else:
+            text += f"{slot_emojis[i]} <i>Vacío</i>\n"
+
+    text += "\n━━━━━━━━━━━━━━━━━━\n"
+
+    if slots[0] and slots[1]:
+        a = slots[0]
+        b = slots[1]
+        same_name = a["name"] == b["name"]
+        same_era = a.get("era") == b.get("era")
+        same_rarity = a["rarity"] == b["rarity"]
+        both_max_stats = check_all_stats_100(a) and check_all_stats_100(b)
+        can_evolve = same_name and not same_era and same_rarity and both_max_stats
+
+        if can_evolve:
+            current_rarity = a["rarity"]
+            if current_rarity in NEXT_RARITY:
+                cost = EVOLUTION_COST[current_rarity]
+                rate = int(EVOLUTION_SUCCESS_RATE[current_rarity] * 100)
+                next_r = NEXT_RARITY[current_rarity]
+                text += f"💰 Costo: <code>{cost} pts</code>\n"
+                text += f"📊 Rareza: {current_rarity} → {next_r}\n"
+                text += f"🎲 Éxito: <code>{rate}%</code>\n"
+                text += f"⚠️ Si fallas, pierdes {cost} pts pero conservas las idols\n"
+            else:
+                text += "❌ La rareza SSS es la máxima\n"
+        else:
+            if not same_name:
+                text += "❌ Las idols deben tener el mismo nombre\n"
+            elif same_era:
+                text += "❌ Las idols deben tener eras diferentes\n"
+            elif not same_rarity:
+                text += "❌ Las idols deben tener la misma rareza\n"
+            elif not both_max_stats:
+                text += "❌ Ambas necesitan stats al 100\n"
+    else:
+        text += "Selecciona 2 idols para evolucionar\n"
+
+    kb = []
+    if slots[0] is None:
+        kb.append([InlineKeyboardButton("1️⃣ Seleccionar Idol 1", callback_data=f"evo_sel_0_{owner_id}")])
+    if slots[1] is None:
+        kb.append([InlineKeyboardButton("2️⃣ Seleccionar Idol 2", callback_data=f"evo_sel_1_{owner_id}")])
+
+    if slots[0] and slots[1]:
+        a = slots[0]
+        b = slots[1]
+        same_name = a["name"] == b["name"]
+        same_era = a.get("era") != b.get("era")
+        same_rarity = a["rarity"] == b["rarity"]
+        both_max = check_all_stats_100(a) and check_all_stats_100(b)
+        can_evolve = same_name and same_era and same_rarity and both_max
+
+        if can_evolve and a["rarity"] in NEXT_RARITY:
+            kb.append([InlineKeyboardButton("🧬 ¡EVOLUCIONAR!", callback_data=f"evo_exe_{owner_id}")])
+
+    if slots[0] is not None or slots[1] is not None:
+        kb.append([InlineKeyboardButton("🧹 Limpiar", callback_data=f"evo_clr_{owner_id}")])
+
+    kb.append([InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{owner_id}")])
+
+    await safe_edit(q, text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+
+
+@handle_telegram_errors
+async def evolve_select_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Selector paginado de idols para evolución"""
+    q = update.callback_query
+    parts = q.data.split("_")
+    slot_idx = int(parts[2])
+    owner_id = int(parts[3])
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No es tu menú.", show_alert=True)
+        return
+
+    uid = q.from_user.id
+    all_idols = get_user_idols(uid)
+
+    if not all_idols:
+        await q.answer("❌ No tienes idols.", show_alert=True)
+        return
+
+    # Filtro: solo idols activas, no en venta, no ocupadas
+    eligible = []
+    for idol in all_idols:
+        if idol.get("status") == "active" and not idol.get("for_sale"):
+            busy = None
+            if idol.get("busy_until"):
+                try:
+                    busy_until = datetime.fromisoformat(idol["busy_until"])
+                    if datetime.utcnow() < busy_until:
+                        busy = idol.get("status")
+                except (ValueError, TypeError):
+                    pass
+            if not busy:
+                eligible.append(idol)
+
+    if not eligible:
+        await q.answer("❌ No tienes idols disponibles.", show_alert=True)
+        return
+
+    # Pagination
+    page = 0
+    per_page = 5
+    total_pages = (len(eligible) - 1) // per_page + 1
+    start_idx = page * per_page
+    page_idols = eligible[start_idx:start_idx + per_page]
+
+    text = f"🧬 <b>SELECCIONA IDOL (slot {slot_idx + 1})</b>\n━━━━━━━━━━━━━━━━━━\n"
+
+    num_buttons = []
+    for i, idol in enumerate(page_idols):
+        global_idx = start_idx + i
+        name = html.escape(idol.get("name", "???").replace("_", " "))
+        era = html.escape(idol.get("era", "Standard"))
+        rarity = html.escape(idol.get("rarity", "C"))
+        stats_ok = check_all_stats_100(idol)
+        icon = "✅" if stats_ok else "❌"
+        text += f"{global_idx + 1}. {icon} <b>{name}</b> ({era}) [{rarity}]\n"
+        num_buttons.append(InlineKeyboardButton(f"{icon}{global_idx + 1}", callback_data=f"evo_pik_{slot_idx}_{global_idx}_{owner_id}"))
+
+    kb = [num_buttons]
+
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton("◀️", callback_data=f"evo_sel_{slot_idx}_{owner_id}"))
+    nav.append(InlineKeyboardButton(f"{page + 1}/{total_pages}", callback_data="noop"))
+    if page < total_pages - 1:
+        nav.append(InlineKeyboardButton("▶️", callback_data=f"evo_sel_{slot_idx}_{owner_id}"))
+    kb.append(nav)
+    kb.append([InlineKeyboardButton("🔙 Volver", callback_data=f"evo_main_{owner_id}")])
+
+    await safe_edit(q, text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+
+
+@handle_telegram_errors
+async def evolve_pick_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Selecciona una idol para un slot de evolución"""
+    q = update.callback_query
+    parts = q.data.split("_")
+    slot_idx = int(parts[2])
+    idol_idx = int(parts[3])
+    owner_id = int(parts[4])
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No es tu menú.", show_alert=True)
+        return
+
+    uid = q.from_user.id
+    all_idols = get_user_idols(uid)
+
+    # Filtrar las mismas que en select
+    eligible = []
+    for idol in all_idols:
+        if idol.get("status") == "active" and not idol.get("for_sale"):
+            busy = None
+            if idol.get("busy_until"):
+                try:
+                    busy_until = datetime.fromisoformat(idol["busy_until"])
+                    if datetime.utcnow() < busy_until:
+                        busy = idol.get("status")
+                except (ValueError, TypeError):
+                    pass
+            if not busy:
+                eligible.append(idol)
+
+    if idol_idx >= len(eligible):
+        await q.answer("❌ Idol no encontrada.", show_alert=True)
+        return
+
+    chosen = eligible[idol_idx]
+
+    # Verificar que no esté ya en el otro slot
+    slots = context.user_data.get("evolve_slots", [None, None])
+    other_idx = 1 - slot_idx
+    if slots[other_idx] and slots[other_idx]["id"] == chosen["id"]:
+        await q.answer("❌ Esta idol ya está en el otro slot.", show_alert=True)
+        return
+
+    # Verificar mismo nombre si ya hay una idol en el otro slot
+    if slots[other_idx]:
+        if chosen["name"] != slots[other_idx]["name"]:
+            await q.answer("❌ Deben tener el mismo nombre.", show_alert=True)
+            return
+        if chosen.get("era") == slots[other_idx].get("era"):
+            await q.answer("❌ Deben tener eras diferentes.", show_alert=True)
+            return
+        if chosen["rarity"] != slots[other_idx]["rarity"]:
+            await q.answer("❌ Deben tener la misma rareza.", show_alert=True)
+            return
+
+    slots[slot_idx] = chosen
+    context.user_data["evolve_slots"] = slots
+
+    name = html.escape(chosen.get("name", "???").replace("_", " "))
+    await q.answer(f"✅ {name} seleccionada")
+
+    await evolve_menu_handler(update, context, manual_owner_id=owner_id)
+
+
+@handle_telegram_errors
+async def evolve_execute_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Ejecuta la evolución"""
+    q = update.callback_query
+    owner_id = int(q.data.split("_")[2])
+
+    if q.from_user.id != owner_id:
+        await q.answer("❌ No es tu menú.", show_alert=True)
+        return
+
+    slots = context.user_data.get("evolve_slots", [None, None])
+
+    if not slots[0] or not slots[1]:
+        await q.answer("❌ Necesitas 2 idols para evolucionar.", show_alert=True)
+        return
+
+    idol_a = slots[0]
+    idol_b = slots[1]
+
+    r = evolve_idol(owner_id, idol_a["id"], idol_b["id"])
+
+    if r == "same_idol":
+        await q.answer("❌ No puedes usar la misma idol dos veces.", show_alert=True)
+        return
+    if r == "different_name":
+        await q.answer("❌ Las idols deben tener el mismo nombre.", show_alert=True)
+        return
+    if r == "same_era":
+        await q.answer("❌ Las idols deben tener eras diferentes.", show_alert=True)
+        return
+    if r == "different_rarity":
+        await q.answer("❌ Las idols deben tener la misma rareza.", show_alert=True)
+        return
+    if r == "max_rarity":
+        await q.answer("❌ SSS es la rareza máxima.", show_alert=True)
+        return
+    if r == "stats_low_a":
+        await q.answer("❌ La idol 1 no tiene stats al 100.", show_alert=True)
+        return
+    if r == "stats_low_b":
+        await q.answer("❌ La idol 2 no tiene stats al 100.", show_alert=True)
+        return
+    if r == "in_market":
+        await q.answer("❌ Una de las idols está en el mercado.", show_alert=True)
+        return
+    if r == "ocupada":
+        await q.answer("❌ Una de las idols está ocupada.", show_alert=True)
+        return
+    if r == "puntos_insuficientes":
+        await q.answer("❌ No tienes suficientes puntos.", show_alert=True)
+        return
+    if r == "no_templates":
+        await q.answer("❌ No hay templates disponibles para esta rareza.", show_alert=True)
+        return
+    if isinstance(r, str):
+        await q.answer(f"❌ Error: {r}", show_alert=True)
+        return
+
+    # Limpiar slots
+    context.user_data["evolve_slots"] = [None, None]
+
+    if r["success"]:
+        new = r["new_idol"]
+        name = html.escape(new.get("name", "???").replace("_", " "))
+        group = html.escape(new.get("group_name", "").replace("_", " "))
+
+        rarity_themes = {
+            "B":  {"emoji": "⭐⭐",      "border": "🟢"},
+            "A":  {"emoji": "⭐⭐⭐",     "border": "🔵"},
+            "S":  {"emoji": "🌟🌟🌟🌟",    "border": "🟣"},
+            "SS": {"emoji": "💎💎💎💎💎", "border": "👑"},
+            "SSS":{"emoji": "👑👑👑👑👑👑", "border": "✨"},
+        }
+        theme = rarity_themes.get(new["rarity"], rarity_themes["B"])
+
+        text = (
+            f"🎉 <b>¡EVOLUCIÓN EXITOSA!</b>\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🧬 {r['idol_name']} evolucionó de <b>{r['current_rarity']}</b> a <b>{r['next_rarity']}</b>\n\n"
+            f"{theme['border']} <b>RAREZA {new['rarity']}</b> {theme['border']}\n"
+            f"✨ <b>{name.upper()}</b>\n"
+            f"🏢 {group}\n"
+            f"📀 Era: <code>{new.get('era', 'Standard')}</code>\n"
+            f"📊 Rareza: {theme['emoji']} ({new['rarity']})\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🎤 {new['vocal']} | 💃 {new['dance']} | 🎧 {new['rap']}\n\n"
+            f"💰 Costo: <code>{r['cost']} pts</code>\n"
+            f"💡 La idol empieza con stats base (entrena para subirlas)"
+        )
+    else:
+        text = (
+            f"💔 <b>EVOLUCIÓN FALLIDA</b>\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🧬 {r['idol_name']} no pudo evolucionar de <b>{r['current_rarity']}</b> a <b>{r['next_rarity']}</b>\n\n"
+            f"💰 Perdiste: <code>{r['cost']} pts</code>\n"
+            f"✅ Tus idols se conservan intactas\n\n"
+            f"<i>La suerte no estuvo de tu lado. ¡Inténtalo de nuevo!</i>"
+        )
+
+    kb = [[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{owner_id}")]]
+    await safe_edit(q, text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+
+
+@handle_telegram_errors
+async def evolve_clear_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Resetea los slots de evolución"""
+    q = update.callback_query
+    owner_id = int(q.data.split("_")[2])
+    context.user_data["evolve_slots"] = [None, None]
+    await q.answer("🧹 Slots limpiados.")
+    await evolve_menu_handler(update, context, manual_owner_id=owner_id)
 
 
 # ─── NOOP (for page indicators) ───

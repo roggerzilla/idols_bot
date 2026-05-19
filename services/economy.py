@@ -14,7 +14,8 @@ from storage import (
 )
 from config import (
     TRAIN_COST, COMEBACK_BASE_COST, TRAIN_NSFW_COST,
-    RARITY_CONFIG, MAINTENANCE_COST_BASE, INTERACT_OPTIONS, PERSONAL_EVENTS
+    RARITY_CONFIG, MAINTENANCE_COST_BASE, INTERACT_OPTIONS, PERSONAL_EVENTS,
+    NEXT_RARITY, EVOLUTION_COST, EVOLUTION_SUCCESS_RATE, ALL_STATS_KEYS
 )
 
 # NSFW Stat Emojis
@@ -529,6 +530,139 @@ def perform_fusion(user_id: int, idol_ids: List[int]) -> dict | str:
         "new_idol": new_idol,
         "fused_names": [i["name"] for i in fusing_idols],
         "result_rarity": result_rarity
+    }
+
+
+def check_all_stats_100(idol: dict) -> bool:
+    """Verifica si una idol tiene todas las stats al 100"""
+    for stat in ALL_STATS_KEYS:
+        if idol.get(stat, 0) < 100:
+            return False
+    return True
+
+
+def evolve_idol(user_id: int, idol_id_a: int, idol_id_b: int) -> dict | str:
+    """Evoluciona 2 idols del mismo nombre (era diferente) a la siguiente rareza"""
+    idols = get_all_idols()
+
+    if str(idol_id_a) not in idols:
+        return "error"
+    if str(idol_id_b) not in idols:
+        return "error"
+
+    idol_a = idols[str(idol_id_a)]
+    idol_b = idols[str(idol_id_b)]
+
+    if idol_a["user_id"] != user_id or idol_b["user_id"] != user_id:
+        return "not_owner"
+
+    if idol_a["id"] == idol_b["id"]:
+        return "same_idol"
+
+    # Verificar que tengan el mismo nombre
+    if idol_a["name"] != idol_b["name"]:
+        return "different_name"
+
+    # Verificar que tengan eras diferentes
+    if idol_a.get("era", "Standard") == idol_b.get("era", "Standard"):
+        return "same_era"
+
+    # Verificar que estén en la misma rareza
+    if idol_a["rarity"] != idol_b["rarity"]:
+        return "different_rarity"
+
+    # Verificar que la rareza tenga evolución
+    current_rarity = idol_a["rarity"]
+    if current_rarity not in NEXT_RARITY:
+        return "max_rarity"
+
+    # Verificar que ambas tengan todas las stats al 100
+    if not check_all_stats_100(idol_a):
+        return "stats_low_a"
+    if not check_all_stats_100(idol_b):
+        return "stats_low_b"
+
+    # Verificar que no estén en venta o en tour/resting
+    for idol in [idol_a, idol_b]:
+        if idol.get("for_sale"):
+            return "in_market"
+        busy = _check_idol_busy(idol)
+        if busy:
+            return "ocupada"
+
+    # Verificar puntos suficientes
+    cost = EVOLUTION_COST[current_rarity]
+    user = get_user(user_id)
+    if not user or user["points"] < cost:
+        return "puntos_insuficientes"
+
+    # Deducir puntos (se pierden siempre, éxito o fallo)
+    deduct_points(user_id, cost)
+
+    # Calcular probabilidad de éxito
+    success_rate = EVOLUTION_SUCCESS_RATE[current_rarity]
+    roll = random.random()
+    success = roll <= success_rate
+
+    if not success:
+        # Fallo: conservar idols, perder puntos
+        return {
+            "success": False,
+            "cost": cost,
+            "current_rarity": current_rarity,
+            "next_rarity": NEXT_RARITY[current_rarity],
+            "idol_name": idol_a["name"]
+        }
+
+    # Éxito: buscar template del mismo nombre en la siguiente rareza
+    next_rarity = NEXT_RARITY[current_rarity]
+    all_templates = get_all_templates()
+
+    # Buscar templates con el mismo nombre en la siguiente rareza
+    matching_templates = []
+    for tid, t in all_templates.items():
+        if (t.get("name") == idol_a["name"] and
+            t.get("rarity") == next_rarity and
+            t.get("can_gacha", True)):
+            matching_templates.append(t)
+
+    # Si no hay del mismo nombre, elegir random de la siguiente rareza
+    if not matching_templates:
+        for tid, t in all_templates.items():
+            if (t.get("rarity") == next_rarity and
+                t.get("can_gacha", True)):
+                matching_templates.append(t)
+
+    if not matching_templates:
+        # No hay templates disponibles, devolver puntos
+        add_points(user_id, cost)
+        return "no_templates"
+
+    template = random.choice(matching_templates)
+
+    # Eliminar las 2 idols originales
+    delete_idols_bulk([idol_id_a, idol_id_b])
+
+    # Crear nueva idol con stats base del template
+    new_idol = create_idol(
+        user_id=user_id,
+        template_id=template["id"],
+        name=template["name"].replace("_", " "),
+        group_name=template.get("group_name", "Unknown"),
+        rarity=next_rarity,
+        base_vocal=template.get("base_vocal", 10),
+        base_dance=template.get("base_dance", 10),
+        base_rap=template.get("base_rap", 10),
+        era=template.get("era", "Standard"),
+    )
+
+    return {
+        "success": True,
+        "new_idol": new_idol,
+        "cost": cost,
+        "current_rarity": current_rarity,
+        "next_rarity": next_rarity,
+        "idol_name": idol_a["name"]
     }
 
 

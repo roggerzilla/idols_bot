@@ -22,7 +22,9 @@ from handlers.actions import (
     select_idol_for_event, use_idol_for_event, nsfw_info_handler, nsfw_train_handler,
     help_game_handler, fusion_menu_handler, fusion_select_slot_handler,
     fusion_pick_idol_handler, fusion_execute_handler, fusion_clear_handler,
-    personal_event_handler
+    personal_event_handler,
+    evolve_menu_handler, evolve_select_handler, evolve_pick_handler,
+    evolve_execute_handler, evolve_clear_handler
 )
 from services.economy import process_maintenance
 from services.scheduler_tasks import process_all_maintenances
@@ -117,6 +119,11 @@ def create_application():
     application.add_handler(CallbackQueryHandler(fusion_pick_idol_handler, pattern="^fus_pick_"))
     application.add_handler(CallbackQueryHandler(fusion_execute_handler, pattern="^fus_exe_"))
     application.add_handler(CallbackQueryHandler(fusion_clear_handler, pattern="^fus_clear_"))
+    application.add_handler(CallbackQueryHandler(evolve_menu_handler, pattern="^evo_main_\\d+$"))
+    application.add_handler(CallbackQueryHandler(evolve_select_handler, pattern="^evo_sel_"))
+    application.add_handler(CallbackQueryHandler(evolve_pick_handler, pattern="^evo_pik_"))
+    application.add_handler(CallbackQueryHandler(evolve_execute_handler, pattern="^evo_exe_"))
+    application.add_handler(CallbackQueryHandler(evolve_clear_handler, pattern="^evo_clr_"))
     application.add_handler(CallbackQueryHandler(noop_handler, pattern="^noop$"))
 
     return application
