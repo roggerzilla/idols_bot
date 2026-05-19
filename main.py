@@ -61,16 +61,18 @@ async def post_init(application):
 
 def create_application():
     """Crea y configura una nueva instancia de la aplicación"""
-    request = HTTPXRequest(proxy="http://proxy.server:3128")
+    request = HTTPXRequest(
+        proxy="http://proxy.server:3128",
+        connect_timeout=30.0,
+        read_timeout=30.0,
+        write_timeout=30.0,
+        pool_timeout=30.0
+    )
 
     application = (
         ApplicationBuilder()
         .token(TELEGRAM_TOKEN)
         .request(request)
-        .connect_timeout(30.0)
-        .read_timeout(30.0)
-        .write_timeout(30.0)
-        .pool_timeout(30.0)
         .post_init(post_init)
         .build()
     )
