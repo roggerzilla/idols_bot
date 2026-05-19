@@ -24,6 +24,19 @@ from utils.formatter import format_idol_card, format_market_listing
 from config import RARITY_CONFIG, PERSONAL_EVENTS, INTERACT_OPTIONS
 from telegram.error import RetryAfter, BadRequest
 
+
+async def safe_edit(q, text, reply_markup=None, parse_mode=None):
+    """Intenta editar el mensaje; si falla (foto), envía uno nuevo y borra el anterior."""
+    try:
+        await q.edit_message_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
+    except BadRequest:
+        await q.message.reply_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
+        try:
+            await q.message.delete()
+        except:
+            pass
+
+
 def handle_telegram_errors(func):
     """Decorador para silenciar errores de Flood Control y BadRequest en ediciones."""
     async def wrapper(update, context, *args, **kwargs):
@@ -82,7 +95,7 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     u = get_user(uid)
     if not u or u.get("points", 0) < 500:
-        await q.edit_message_text(
+        await safe_edit(q, 
             f"❌ <b>PUNTOS INSUFICIENTES</b>\n\nNecesitas <code>500 pts</code> para usar el Gacha.\n💰 Tus puntos: <code>{u['points'] if u else 0}</code>",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"back_main_{uid}")]]),
             parse_mode=ParseMode.HTML
@@ -104,7 +117,7 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     for frame in roulette_frames:
         try:
-            await q.edit_message_text(frame, parse_mode=ParseMode.HTML)
+            await safe_edit(q, frame, parse_mode=ParseMode.HTML)
             await asyncio.sleep(0.5)
         except:
             continue
@@ -157,7 +170,7 @@ async def gacha_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await q.delete_message()
     else:
-        await q.edit_message_text(
+        await safe_edit(q, 
             reveal_text,
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("🎰 Otro Gacha (500 pts)", callback_data=f"gacha_{uid}")],
@@ -183,7 +196,7 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     all_idols = get_user_idols(uid)
 
     if not all_idols:
-        await q.edit_message_text("📉 No tienes idols. ¡Usa el Gacha!",
+        await safe_edit(q, "📉 No tienes idols. ¡Usa el Gacha!",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{uid}")]]))
         return
 
@@ -230,7 +243,7 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("✅ Permitir", callback_data=f"pev_acc_{event['id']}_{target_idol['id']}_{idx}_{uid}")],
                 [InlineKeyboardButton("❌ Denegar", callback_data=f"idols_{idx}_{uid}")]
             ]
-            await q.edit_message_text(event_text, reply_markup=InlineKeyboardMarkup(event_kb), parse_mode="HTML")
+            await safe_edit(q, event_text, reply_markup=InlineKeyboardMarkup(event_kb), parse_mode="HTML")
             return
 
     # Store current idol index
@@ -271,7 +284,7 @@ async def idols_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await q.delete_message()
     else:
-        await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode=ParseMode.HTML)
+        await safe_edit(q, text, reply_markup=InlineKeyboardMarkup(kb), parse_mode=ParseMode.HTML)
 
 
 # ─── IDOL SUBMENUS ───
@@ -316,7 +329,7 @@ async def idol_submenu_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     else:
         await q.answer("❌ Error."); return
 
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+    await safe_edit(q, text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 # ─── COMEBACK ───
@@ -366,7 +379,7 @@ async def idols_list_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     kb.append(nav)
     kb.append([InlineKeyboardButton("🔙 Volver", callback_data=f"idols_0_{owner_id}")])
 
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode=ParseMode.HTML)
+    await safe_edit(q, text, reply_markup=InlineKeyboardMarkup(kb), parse_mode=ParseMode.HTML)
 
 
 @handle_telegram_errors
@@ -416,7 +429,7 @@ async def comeback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.answer("❌ Error.", show_alert=True); return
 
     until = r['until'].strftime("%H:%M")
-    await q.edit_message_text(
+    await safe_edit(q, 
         f"💿 <b>COMEBACK INICIADO: {r['idol_name']}</b>\n━━━━━━━━━━━━━━━━━━\n"
         f"Tu idol está grabando su nuevo álbum...\n\n"
         f"⏳ Resultados a las <code>{until} UTC</code> (30 min)\n"
@@ -463,7 +476,7 @@ async def train_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         ],
         [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]
     ]
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+    await safe_edit(q, text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 @handle_telegram_errors
@@ -489,7 +502,7 @@ async def train_execute_handler(update: Update, context: ContextTypes.DEFAULT_TY
     if r == "error" or r == "not_owner":
         await q.answer("❌ Error.", show_alert=True); return
 
-    await q.edit_message_text(
+    await safe_edit(q, 
         f"💪 <b>ENTRENAMIENTO: {r['idol_name']}</b>\n━━━━━━━━━━━━━━━━━━\n"
         f"{r['emoji']} {r['stat'].title()} subió <code>+{r['boost']}</code> → <code>{r['new_val']}</code>\n\n"
         f"💰 Pagaste: <code>200 pts</code>\n"
@@ -526,7 +539,7 @@ async def interact_menu_handler(update: Update, context: ContextTypes.DEFAULT_TY
         [InlineKeyboardButton(INTERACT_OPTIONS["live"]["name"], callback_data=f"int_exe_live_{iid}_{idx}_{owner_id}")],
         [InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]
     ]
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+    await safe_edit(q, text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 @handle_telegram_errors
@@ -550,7 +563,7 @@ async def interact_execute_handler(update: Update, context: ContextTypes.DEFAULT
     if r == "error" or r == "not_owner":
         await q.answer("❌ Error.", show_alert=True); return
 
-    await q.edit_message_text(
+    await safe_edit(q, 
         f"📱 <b>INTERACCIÓN: {r['idol_name']}</b>\n━━━━━━━━━━━━━━━━━━\n"
         f"{r['text']}\n\n"
         f"❤️ Moral: <code>{r['new_morale']}/100</code>\n"
@@ -593,7 +606,7 @@ async def personal_event_handler(update: Update, context: ContextTypes.DEFAULT_T
         f"━━━━━━━━━━━━━━━━━━"
     )
 
-    await q.edit_message_text(
+    await safe_edit(q, 
         result_text,
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]),
         parse_mode=ParseMode.HTML
@@ -621,7 +634,7 @@ async def rest_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     # Show wake up time
     until = r['until'].strftime("%H:%M")
-    await q.edit_message_text(
+    await safe_edit(q, 
         f"😴 <b>{r['idol_name']} se fue a dormir</b>\n⚡ Energía +{r['energy_gain']} → <code>{r['new_energy']}/100</code>\n"
         f"Regresará a las <code>{until} UTC</code>.",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]),
@@ -652,7 +665,7 @@ async def tour_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         t = "❌ No disponible para tour (debe estar activa y no en el mercado)."
 
-    await q.edit_message_text(t,
+    await safe_edit(q, t,
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]) ,
         parse_mode="HTML")
 
@@ -677,7 +690,7 @@ async def sell_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔙 Cancelar", callback_data=f"idols_{idx}_{owner_id}")],
     ]
 
-    await q.edit_message_text("🏷️ <b>¿A qué precio quieres vender esta idol?</b>",
+    await safe_edit(q, "🏷️ <b>¿A qué precio quieres vender esta idol?</b>",
         reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
@@ -699,7 +712,7 @@ async def list_sell_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         t = "❌ No se pudo listar."
 
-    await q.edit_message_text(t,
+    await safe_edit(q, t,
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{q.from_user.id}")]]),
         parse_mode="HTML")
 
@@ -721,7 +734,7 @@ async def market_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     listings = [idol for idol in all_idols.values() if idol.get("for_sale", False)]
 
     if not listings:
-        await q.edit_message_text("🏪 <b>MERCADO</b>\nNo hay idols en venta.",
+        await safe_edit(q, "🏪 <b>MERCADO</b>\nNo hay idols en venta.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{owner_id}")]]),
             parse_mode="HTML")
         return
@@ -743,7 +756,7 @@ async def market_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
           [InlineKeyboardButton(f"💰 Comprar ({idol['sale_price']} pts)", callback_data=f"buy_{idol['id']}")],
           [InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{owner_id}")]]
 
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+    await safe_edit(q, text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 @handle_telegram_errors
@@ -760,7 +773,7 @@ async def buy_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if isinstance(r, str):
         await q.answer(f"❌ {r}", show_alert=True); return
 
-    await q.edit_message_text(f"✅ <b>¡Compraste a {r['idol_name']}!</b>",
+    await safe_edit(q, f"✅ <b>¡Compraste a {r['idol_name']}!</b>",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{q.from_user.id}")]]),
         parse_mode="HTML")
 
@@ -785,7 +798,7 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
     all_idols = get_user_idols(uid)
 
     if not all_idols:
-        await q.edit_message_text(
+        await safe_edit(q, 
             "📉 <b>NO Tienes idols</b>\n¡Usa el Gacha primero!",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"back_main_{owner_id}")]]),
             parse_mode=ParseMode.HTML
@@ -838,7 +851,7 @@ async def select_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TY
         [InlineKeyboardButton("🔙 Cancelar", callback_data=f"claim_{eid}")]
     ]
 
-    await q.edit_message_text(
+    await safe_edit(q, 
         card_text,
         reply_markup=InlineKeyboardMarkup(kb),
         parse_mode=ParseMode.HTML
@@ -927,7 +940,7 @@ async def use_idol_for_event(update: Update, context: ContextTypes.DEFAULT_TYPE)
                       f"━━━━━━━━━━━━━━━━━━\n"
                       f"✨ <i>Tus stats NSFW han multiplicado la ganancia base significativamente.</i>")
 
-    await q.edit_message_text(result_text, parse_mode="HTML")
+    await safe_edit(q, result_text, parse_mode="HTML")
 
 
 # ─── NSFW INFO HANDLER ───
@@ -978,7 +991,7 @@ async def nsfw_info_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                               callback_data=f"nsfw_tr_fetiches_{iid}_{idx}_{owner_id}")],
     ]
 
-    await q.edit_message_text(
+    await safe_edit(q, 
         text,
         reply_markup=InlineKeyboardMarkup(kb),
         parse_mode=ParseMode.HTML
@@ -1013,7 +1026,7 @@ async def nsfw_train_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if r == "error" or r == "not_owner":
         await q.answer("❌ Error.", show_alert=True); return
 
-    await q.edit_message_text(
+    await safe_edit(q, 
         f"🔞 <b>ENTRENAMIENTO NSFW de {r['idol_name']}</b>\n━━━━━━━━━━━━━━━━━━\n"
         f"{r['emoji']} {r['stat']} subió <code>+{r['boost']}</code> → <code>{r['new_val']}/100</code>",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Volver", callback_data=f"idols_{idx}_{owner_id}")]]),
@@ -1034,7 +1047,7 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not event or event.get("is_taken"):
         await q.answer("❌ Este evento ya ha sido reclamado.", show_alert=True)
         try:
-            await q.edit_message_text("⌛ <b>EVENTO FINALIZADO</b>\nEste contrato ya ha sido firmado.", parse_mode="HTML")
+            await safe_edit(q, "⌛ <b>EVENTO FINALIZADO</b>\nEste contrato ya ha sido firmado.", parse_mode="HTML")
         except: pass
         return
 
@@ -1089,7 +1102,7 @@ async def claim_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton(" Anular", callback_data="noop")]
     ]
 
-    await q.edit_message_text(
+    await safe_edit(q, 
         text,
         reply_markup=InlineKeyboardMarkup(kb),
         parse_mode=ParseMode.HTML
@@ -1120,7 +1133,7 @@ async def help_points_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
 
     kb = [[InlineKeyboardButton("🔙 Volver", callback_data=f"back_main_{q.from_user.id}")]]
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+    await safe_edit(q, text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 @handle_telegram_errors
@@ -1158,7 +1171,7 @@ async def help_game_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
     kb = [[InlineKeyboardButton("🔙 Volver", callback_data=f"back_main_{q.from_user.id}")]]
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+    await safe_edit(q, text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 # ─── FUSION HANDLERS ───
 @handle_telegram_errors
@@ -1209,7 +1222,7 @@ async def fusion_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     kb.append([InlineKeyboardButton("🧹 Limpiar todo", callback_data=f"fus_clear_{owner_id}")])
     kb.append([InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{owner_id}")])
 
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+    await safe_edit(q, text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 @handle_telegram_errors
@@ -1258,7 +1271,7 @@ async def fusion_select_slot_handler(update: Update, context: ContextTypes.DEFAU
 
     kb.append([InlineKeyboardButton("🔙 Volver", callback_data=f"fusion_main_{owner_id}")])
 
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+    await safe_edit(q, text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 @handle_telegram_errors
@@ -1295,7 +1308,7 @@ async def fusion_execute_handler(update: Update, context: ContextTypes.DEFAULT_T
         await q.answer("❌ Necesitas 3 idols.", show_alert=True); return
 
     # Feedback visual inmediato
-    await q.edit_message_text("🧪 <b>PROCESANDO FUSIÓN...</b>\n━━━━━━━━━━━━━━━━━━\n🧬 Combinando secuencias de ADN...\n✨ Estabilizando núcleos de idols...\n⏳ Por favor espera un momento...", parse_mode="HTML")
+    await safe_edit(q, "🧪 <b>PROCESANDO FUSIÓN...</b>\n━━━━━━━━━━━━━━━━━━\n🧬 Combinando secuencias de ADN...\n✨ Estabilizando núcleos de idols...\n⏳ Por favor espera un momento...", parse_mode="HTML")
     
     try:
         result = perform_fusion(owner_id, slots)
@@ -1360,7 +1373,7 @@ async def fusion_execute_handler(update: Update, context: ContextTypes.DEFAULT_T
     )
 
     kb = [[InlineKeyboardButton("🔙 Menú", callback_data=f"back_main_{owner_id}")]]
-    await q.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
+    await safe_edit(q, text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
 
 @handle_telegram_errors
