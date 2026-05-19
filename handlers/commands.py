@@ -285,9 +285,11 @@ async def profile_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def get_photo_id_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Herramienta de admin: responde con el file_id de cualquier foto enviada"""
     uid = update.effective_user.id
-    from config import ADMIN_IDS
+    from config import ADMIN_IDS, TEST_GROUP_ID
     if ADMIN_IDS and uid not in ADMIN_IDS:
-        return 
+        return
+    if TEST_GROUP_ID and update.effective_chat.id != TEST_GROUP_ID:
+        return
 
     if update.message.photo:
         file_id = update.message.photo[-1].file_id

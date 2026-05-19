@@ -63,13 +63,16 @@ ALL_STATS_KEYS = [
 
 # Rarity Multipliers
 RARITY_CONFIG = {
-    'C':  {'mult': 1.0,  'chance': 0.40},
-    'B':  {'mult': 1.5,  'chance': 0.35},
-    'A':  {'mult': 2.5,  'chance': 0.18},
-    'S':  {'mult': 5.0,  'chance': 0.06},
+    'C':  {'mult': 1.0,  'chance': 0.45},
+    'B':  {'mult': 1.5,  'chance': 0.40},
+    'A':  {'mult': 2.5,  'chance': 0.10},
+    'S':  {'mult': 5.0,  'chance': 0.04},
     'SS': {'mult': 10.0, 'chance': 0.009},
     'SSS':{'mult': 25.0, 'chance': 0.001},
 }
+
+# Grupo de pruebas para detección de file_id
+TEST_GROUP_ID = -1003998614737
 
 # NSFW Event Texts (variedad)
 NSFW_EVENTS = [
