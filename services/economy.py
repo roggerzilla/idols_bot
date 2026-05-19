@@ -563,9 +563,9 @@ def evolve_idol(user_id: int, idol_id_a: int, idol_id_b: int) -> dict | str:
     if idol_a["name"] != idol_b["name"]:
         return "different_name"
 
-    # Verificar que tengan eras diferentes
-    if idol_a.get("era", "Standard") == idol_b.get("era", "Standard"):
-        return "same_era"
+    # Verificar que tengan la misma era
+    if idol_a.get("era", "Standard") != idol_b.get("era", "Standard"):
+        return "different_era"
 
     # Verificar que estén en la misma rareza
     if idol_a["rarity"] != idol_b["rarity"]:
@@ -614,19 +614,28 @@ def evolve_idol(user_id: int, idol_id_a: int, idol_id_b: int) -> dict | str:
             "idol_name": idol_a["name"]
         }
 
-    # Éxito: buscar template del mismo nombre en la siguiente rareza
+    # Éxito: buscar template del mismo nombre + misma era en la siguiente rareza
     next_rarity = NEXT_RARITY[current_rarity]
     all_templates = get_all_templates()
 
-    # Buscar templates con el mismo nombre en la siguiente rareza
+    # 1. Buscar template exacto: mismo nombre, misma era, siguiente rareza
     matching_templates = []
     for tid, t in all_templates.items():
         if (t.get("name") == idol_a["name"] and
+            t.get("era") == idol_a.get("era", "Standard") and
             t.get("rarity") == next_rarity and
             t.get("can_gacha", True)):
             matching_templates.append(t)
 
-    # Si no hay del mismo nombre, elegir random de la siguiente rareza
+    # 2. Si no hay exacto, buscar mismo nombre en siguiente rareza (cualquier era)
+    if not matching_templates:
+        for tid, t in all_templates.items():
+            if (t.get("name") == idol_a["name"] and
+                t.get("rarity") == next_rarity and
+                t.get("can_gacha", True)):
+                matching_templates.append(t)
+
+    # 3. Si no hay del mismo nombre, elegir random de la siguiente rareza
     if not matching_templates:
         for tid, t in all_templates.items():
             if (t.get("rarity") == next_rarity and

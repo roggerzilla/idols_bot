@@ -1408,7 +1408,7 @@ async def evolve_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     slots = context.user_data["evolve_slots"]
 
     text = "🧬 <b>EVOLUCIÓN DE IDOLS</b>\n━━━━━━━━━━━━━━━━━━\n"
-    text += "Combina 2 idols del mismo nombre (era diferente) con stats al 100 para subir de rareza.\n\n"
+    text += "Combina 2 idols del mismo nombre, misma era y misma rareza con stats al 100 para subir de rareza.\n\n"
 
     slot_emojis = ["1️⃣", "2️⃣"]
 
@@ -1435,7 +1435,7 @@ async def evolve_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         same_era = a.get("era") == b.get("era")
         same_rarity = a["rarity"] == b["rarity"]
         both_max_stats = check_all_stats_100(a) and check_all_stats_100(b)
-        can_evolve = same_name and not same_era and same_rarity and both_max_stats
+        can_evolve = same_name and same_era and same_rarity and both_max_stats
 
         if can_evolve:
             current_rarity = a["rarity"]
@@ -1452,8 +1452,8 @@ async def evolve_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         else:
             if not same_name:
                 text += "❌ Las idols deben tener el mismo nombre\n"
-            elif same_era:
-                text += "❌ Las idols deben tener eras diferentes\n"
+            elif not same_era:
+                text += "❌ Las idols deben tener la misma era\n"
             elif not same_rarity:
                 text += "❌ Las idols deben tener la misma rareza\n"
             elif not both_max_stats:
@@ -1471,7 +1471,7 @@ async def evolve_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         a = slots[0]
         b = slots[1]
         same_name = a["name"] == b["name"]
-        same_era = a.get("era") != b.get("era")
+        same_era = a.get("era") == b.get("era")
         same_rarity = a["rarity"] == b["rarity"]
         both_max = check_all_stats_100(a) and check_all_stats_100(b)
         can_evolve = same_name and same_era and same_rarity and both_max
@@ -1608,8 +1608,8 @@ async def evolve_pick_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         if chosen["name"] != slots[other_idx]["name"]:
             await q.answer("❌ Deben tener el mismo nombre.", show_alert=True)
             return
-        if chosen.get("era") == slots[other_idx].get("era"):
-            await q.answer("❌ Deben tener eras diferentes.", show_alert=True)
+        if chosen.get("era") != slots[other_idx].get("era"):
+            await q.answer("❌ Deben tener la misma era.", show_alert=True)
             return
         if chosen["rarity"] != slots[other_idx]["rarity"]:
             await q.answer("❌ Deben tener la misma rareza.", show_alert=True)
@@ -1651,8 +1651,8 @@ async def evolve_execute_handler(update: Update, context: ContextTypes.DEFAULT_T
     if r == "different_name":
         await q.answer("❌ Las idols deben tener el mismo nombre.", show_alert=True)
         return
-    if r == "same_era":
-        await q.answer("❌ Las idols deben tener eras diferentes.", show_alert=True)
+    if r == "different_era":
+        await q.answer("❌ Las idols deben tener la misma era.", show_alert=True)
         return
     if r == "different_rarity":
         await q.answer("❌ Las idols deben tener la misma rareza.", show_alert=True)
