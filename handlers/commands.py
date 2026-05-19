@@ -288,7 +288,8 @@ async def get_photo_id_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     from config import ADMIN_IDS, TEST_GROUP_ID
     if ADMIN_IDS and uid not in ADMIN_IDS:
         return
-    if TEST_GROUP_ID and update.effective_chat.id != TEST_GROUP_ID:
+    chat_id = update.effective_chat.id if update.effective_chat else None
+    if TEST_GROUP_ID and chat_id != TEST_GROUP_ID and chat_id != uid:
         return
 
     if update.message.photo:
